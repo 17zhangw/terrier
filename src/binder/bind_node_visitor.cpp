@@ -334,7 +334,9 @@ void BindNodeVisitor::Visit(common::ManagedPointer<parser::InsertStatement> node
 
   // Validate input values.
   {
-    for (auto &values : *insert_values) {
+    size_t num_insert_values = insert_values->size();
+    for (size_t i = 0; i < num_insert_values; i++) {
+      auto &values = (*insert_values)[i];
       // Value is a row (tuple) to insert.
       size_t num_values = values.size();
       // Test that they have the same number of columns.
@@ -398,12 +400,19 @@ void BindNodeVisitor::Visit(common::ManagedPointer<parser::InsertStatement> node
           }
         }
 
-        // We overwrite the original insert columns and values with the schema-ordered versions generated above.
-        insert_columns->clear();
+        // Overwrite the original values with the schema-ordered versions generated above.
         values.clear();
         for (auto &pair : cols) {
-          insert_columns->emplace_back(pair.first.Name());
           values.emplace_back(pair.second);
+        }
+
+        // Since insert_columns is shared across all tuples being inserted (i.e data member of
+        // the InsertStatement), only update this on the last tuple.
+        if (i == num_insert_values - 1) {
+          insert_columns->clear();
+          for (auto &pair : cols) {
+            insert_columns->emplace_back(pair.first.Name());
+          }
         }
       }
 
