@@ -807,10 +807,26 @@ void PlanGenerator::Visit(const Insert *op) {
   }
 
   if (op->IsInsertSelect()) {
+    NOISEPAGE_ASSERT(children_expr_map_.size() == 1, "INSERT with SELECT should have 1 child");
+    auto &child_expr_map = children_expr_map_[0];
+
+    std::vector<planner::OutputSchema::Column> columns;
+    for (auto &expr : output_cols_) {
+      auto type = expr->GetReturnValueType();
+      if (child_expr_map.count(expr) != 0U) {
+        auto dve = std::make_unique<parser::DerivedValueExpression>(type, 0, child_expr_map[expr]);
+        columns.emplace_back(expr->GetExpressionName(), type, std::move(dve));
+      } else {
+        auto eval = parser::ExpressionUtil::EvaluateExpression(children_expr_map_, expr);
+        columns.emplace_back(expr->GetExpressionName(), type, std::move(eval));
+      }
+    }
+    builder.SetOutputSchema(std::make_unique<planner::OutputSchema>(std::move(columns)));
     builder.AddChild(std::move(children_plans_[0]));
+  } else {
+    builder.SetOutputSchema(std::make_unique<planner::OutputSchema>());
   }
 
-  builder.SetOutputSchema(std::make_unique<planner::OutputSchema>());
   output_plan_ = builder.Build();
 }
 

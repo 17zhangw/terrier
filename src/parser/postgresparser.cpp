@@ -1859,15 +1859,14 @@ std::unique_ptr<InsertStatement> PostgresParser::InsertTransform(ParseResult *pa
   auto table_ref = RangeVarTransform(parse_result, root->relation_);
   auto select_stmt = reinterpret_cast<SelectStmt *>(root->select_stmt_);
 
-  if (select_stmt->from_clause_ != nullptr) {
-    // select from a table to insert
-    auto select_trans = SelectTransform(parse_result, select_stmt);
-    result = std::make_unique<InsertStatement>(std::move(column_names), std::move(table_ref), std::move(select_trans));
-  } else {
-    // directly insert some values
-    NOISEPAGE_ASSERT(select_stmt->values_lists_ != nullptr, "Must have values to insert.");
+  if (select_stmt->values_lists_ != nullptr) {
+    // INSERT specified by values list
     auto insert_values = ValueListsTransform(parse_result, select_stmt->values_lists_);
     result = std::make_unique<InsertStatement>(std::move(column_names), std::move(table_ref), std::move(insert_values));
+  } else {
+    // INSERT specified by a select clause
+    auto select_trans = SelectTransform(parse_result, select_stmt);
+    result = std::make_unique<InsertStatement>(std::move(column_names), std::move(table_ref), std::move(select_trans));
   }
 
   return result;

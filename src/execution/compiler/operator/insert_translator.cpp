@@ -87,7 +87,7 @@ void InsertTranslator::PerformPipelineWork(WorkContext *context, FunctionBuilder
 
   if (is_insert_select_) {
     std::vector<common::ManagedPointer<parser::AbstractExpression>> child_outputs;
-    auto child_output = GetPlanAs<planner::InsertPlanNode>().GetChild(0)->GetOutputSchema();
+    auto child_output = GetPlanAs<planner::InsertPlanNode>().GetOutputSchema();
     for (auto &column : child_output->GetColumns()) {
       child_outputs.push_back(column.GetExpr());
     }

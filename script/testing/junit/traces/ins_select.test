@@ -1,0 +1,300 @@
+statement ok
+DROP TABLE IF EXISTS tt;
+
+statement ok
+DROP TABLE IF EXISTS t;
+
+statement ok
+
+
+statement ok
+CREATE TABLE tt (a INT NOT NULL, b INT DEFAULT 3);
+
+statement ok
+CREATE TABLE t (a INT);
+
+statement ok
+INSERT INTO t VALUES (1), (2), (3);
+
+statement ok
+
+
+statement ok
+INSERT INTO tt (a) SELECT * FROM t;
+
+query II nosort
+SELECT * FROM tt ORDER BY a, b;
+----
+1
+3
+2
+3
+3
+3
+
+statement ok
+INSERT INTO tt SELECT * FROM tt;
+
+query II nosort
+SELECT * FROM tt ORDER BY a, b;
+----
+1
+3
+1
+3
+2
+3
+2
+3
+3
+3
+3
+3
+
+statement ok
+DELETE FROM tt;
+
+statement ok
+
+
+statement ok
+INSERT INTO tt SELECT a, 1 FROM t;
+
+query II nosort
+SELECT * FROM tt ORDER BY a, b;
+----
+1
+1
+2
+1
+3
+1
+
+statement ok
+INSERT INTO tt SELECT b.a, 2 FROM t b;
+
+query II nosort
+SELECT * FROM tt ORDER BY a, b;
+----
+1
+1
+1
+2
+2
+1
+2
+2
+3
+1
+3
+2
+
+statement ok
+DELETE FROM tt;
+
+statement ok
+
+
+statement ok
+INSERT INTO tt (a, b) SELECT a, 1 FROM t;
+
+query II nosort
+SELECT * FROM tt ORDER BY a, b;
+----
+1
+1
+2
+1
+3
+1
+
+statement ok
+INSERT INTO tt (a, b) SELECT b.a, 2 FROM t b;
+
+query II nosort
+SELECT * FROM tt ORDER BY a, b;
+----
+1
+1
+1
+2
+2
+1
+2
+2
+3
+1
+3
+2
+
+statement ok
+DELETE FROM tt;
+
+statement ok
+
+
+statement ok
+INSERT INTO tt (b, a) SELECT a, 1 FROM t;
+
+query II nosort
+SELECT * FROM tt ORDER BY a, b;
+----
+1
+1
+1
+2
+1
+3
+
+statement ok
+INSERT INTO tt (b, a) SELECT b.a, 2 FROM t b;
+
+query II nosort
+SELECT * FROM tt ORDER BY a, b;
+----
+1
+1
+1
+2
+1
+3
+2
+1
+2
+2
+2
+3
+
+statement ok
+
+
+statement ok
+INSERT INTO tt SELECT a, a + 1 FROM t;
+
+statement ok
+INSERT INTO t SELECT a FROM tt;
+
+statement ok
+INSERT INTO t (a) SELECT b FROM tt;
+
+query I nosort
+SELECT * FROM t ORDER BY a;
+----
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+2
+2
+2
+3
+3
+3
+3
+3
+4
+
+statement ok
+DELETE FROM tt;
+
+statement ok
+
+
+statement ok
+INSERT INTO tt SELECT a, count(a) FROM t GROUP BY a;
+
+statement ok
+INSERT INTO tt SELECT b.a, count(b.a) FROM t b GROUP BY b.a;
+
+query II nosort
+SELECT * FROM tt ORDER BY a, b;
+----
+1
+7
+1
+7
+2
+8
+2
+8
+3
+5
+3
+5
+4
+1
+4
+1
+
+statement ok
+DELETE FROM tt;
+
+statement ok
+
+
+statement ok
+INSERT INTO tt (a) SELECT DISTINCT a FROM t;
+
+statement ok
+INSERT INTO tt (a, b) SELECT 3, l.a FROM (SELECT DISTINCT a FROM t) l;
+
+query II nosort
+SELECT * FROM tt;
+----
+3
+3
+4
+3
+2
+3
+1
+3
+3
+3
+3
+4
+3
+2
+3
+1
+
+statement ok
+DELETE FROM tt;
+
+statement ok
+
+
+statement ok
+INSERT INTO tt SELECT l.a, b.a + 1 FROM t l, t b;
+
+query II nosort
+SELECT * FROM tt;
+----
+882 values hashing to 2d1f0e3f3ae73b3da5ea64a853a6a699
+
+statement ok
+DELETE FROM tt;
+
+statement ok
+
+
+statement ok
+INSERT INTO tt SELECT 1, 1;
+
+query II nosort
+SELECT * FROM tt;
+----
+1
+1
+
+statement ok
+DELETE FROM tt;
+
