@@ -256,7 +256,7 @@ TEST_F(OperatorTransformerTest, InsertStatementSelectTest) {
   std::string insert_sql = "INSERT INTO A (A1) SELECT B1 FROM B WHERE B1 > 0";
 
   std::string ref =
-      "{\"Op\":\"LogicalInsertSelect\",\"Children\":"
+      "{\"Op\":\"LogicalInsert\",\"Children\":"
       "[{\"Op\":\"LogicalFilter\",\"Children\":"
       "[{\"Op\":\"LogicalGet\",}]}]}";
 
@@ -271,7 +271,7 @@ TEST_F(OperatorTransformerTest, InsertStatementSelectTest) {
   EXPECT_EQ(ref, info);
 
   // Test LogicalInsertSelect
-  auto logical_insert_select = operator_tree_->Contents()->GetContentsAs<optimizer::LogicalInsertSelect>();
+  auto logical_insert_select = operator_tree_->Contents()->GetContentsAs<optimizer::LogicalInsert>();
   EXPECT_EQ(db_oid_, logical_insert_select->GetDatabaseOid());
   EXPECT_EQ(table_a_oid_, logical_insert_select->GetTableOid());
 

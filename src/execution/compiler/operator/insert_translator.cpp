@@ -28,13 +28,19 @@ InsertTranslator::InsertTranslator(const planner::InsertPlanNode &plan, Compilat
                     ->GetCatalogAccessor()
                     ->GetTable(GetPlanAs<planner::InsertPlanNode>().GetTableOid())
                     ->ProjectionMapForOids(all_oids_)) {
+  is_insert_select_ = plan.GetChildren().size() == 1;
   pipeline->RegisterSource(this, Pipeline::Parallelism::Serial);
-  for (uint32_t idx = 0; idx < plan.GetBulkInsertCount(); idx++) {
-    const auto &node_vals = GetPlanAs<planner::InsertPlanNode>().GetValues(idx);
-    for (const auto &node_val : node_vals) {
-      compilation_context->Prepare(*node_val);
+  if (is_insert_select_) {
+    compilation_context->Prepare(*plan.GetChild(0), pipeline);
+  } else {
+    for (uint32_t idx = 0; idx < plan.GetBulkInsertCount(); idx++) {
+      const auto &node_vals = GetPlanAs<planner::InsertPlanNode>().GetValues(idx);
+      for (const auto &node_val : node_vals) {
+        compilation_context->Prepare(*node_val);
+      }
     }
   }
+
   for (auto &index_oid : GetCodeGen()->GetCatalogAccessor()->GetIndexOids(plan.GetTableOid())) {
     const auto &index_schema = GetCodeGen()->GetCatalogAccessor()->GetIndexSchema(index_oid);
     for (const auto &index_col : index_schema.GetColumns()) {
@@ -49,6 +55,27 @@ void InsertTranslator::InitializePipelineState(const Pipeline &pipeline, Functio
   CounterSet(function, num_inserts_, 0);
 }
 
+void InsertTranslator::GenBulkInsert(
+    FunctionBuilder *builder, WorkContext *context,
+    const std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>> &tuples) const {
+  for (size_t i = 0; i < tuples.size(); i++) {
+    // var insert_pr = @getTablePR(&inserter)
+    GetInsertPR(builder);
+    // For each attribute, @prSet(insert_pr, ...)
+    GenSetTablePR(builder, context, tuples[i]);
+    // var insert_slot = @tableInsert(&inserter)
+    GenTableInsert(builder);
+    const auto &table_oid = GetPlanAs<planner::InsertPlanNode>().GetTableOid();
+    const auto &index_oids = GetCodeGen()->GetCatalogAccessor()->GetIndexOids(table_oid);
+    for (const auto &index_oid : index_oids) {
+      GenIndexInsert(context, builder, index_oid);
+    }
+
+    builder->Append(GetCodeGen()->ExecCtxAddRowsAffected(GetExecutionContext(), 1));
+    CounterAdd(builder, num_inserts_, 1);
+  }
+}
+
 void InsertTranslator::PerformPipelineWork(WorkContext *context, FunctionBuilder *function) const {
   // var col_oids: [num_cols]uint32
   // col_oids[i] = ...
@@ -58,30 +85,37 @@ void InsertTranslator::PerformPipelineWork(WorkContext *context, FunctionBuilder
   // var insert_pr : *ProjectedRow
   DeclareInsertPR(function);
 
-  for (uint32_t idx = 0; idx < GetPlanAs<planner::InsertPlanNode>().GetBulkInsertCount(); idx++) {
-    // var insert_pr = @getTablePR(&inserter)
-    GetInsertPR(function);
-    // For each attribute, @prSet(insert_pr, ...)
-    GenSetTablePR(function, context, idx);
-    // var insert_slot = @tableInsert(&inserter)
-    GenTableInsert(function);
-    function->Append(GetCodeGen()->ExecCtxAddRowsAffected(GetExecutionContext(), 1));
-    const auto &table_oid = GetPlanAs<planner::InsertPlanNode>().GetTableOid();
-    const auto &index_oids = GetCodeGen()->GetCatalogAccessor()->GetIndexOids(table_oid);
-    for (const auto &index_oid : index_oids) {
-      GenIndexInsert(context, function, index_oid);
+  if (is_insert_select_) {
+    std::vector<common::ManagedPointer<parser::AbstractExpression>> child_outputs;
+    auto child_output = GetPlanAs<planner::InsertPlanNode>().GetChild(0)->GetOutputSchema();
+    for (auto &column : child_output->GetColumns()) {
+      child_outputs.push_back(column.GetExpr());
     }
+
+    GenBulkInsert(function, context, {child_outputs});
+  } else {
+    GenBulkInsert(function, context, GetPlanAs<planner::InsertPlanNode>().GetBulkValues());
   }
 
-  FeatureRecord(function, brain::ExecutionOperatingUnitType::INSERT,
-                brain::ExecutionOperatingUnitFeatureAttribute::NUM_ROWS, context->GetPipeline(),
-                CounterVal(num_inserts_));
-  FeatureRecord(function, brain::ExecutionOperatingUnitType::INSERT,
-                brain::ExecutionOperatingUnitFeatureAttribute::CARDINALITY, context->GetPipeline(),
-                CounterVal(num_inserts_));
-  FeatureArithmeticRecordMul(function, context->GetPipeline(), GetTranslatorId(), CounterVal(num_inserts_));
-
+  if (!is_insert_select_) {
+    RecordCounters(context->GetPipeline(), function);
+  }
   GenInserterFree(function);
+}
+
+void InsertTranslator::FinishPipelineWork(const Pipeline &pipeline, FunctionBuilder *function) const {
+  if (is_insert_select_) {
+    RecordCounters(pipeline, function);
+  }
+}
+
+void InsertTranslator::RecordCounters(const Pipeline &pipeline, FunctionBuilder *function) const {
+  NOISEPAGE_ASSERT(!pipeline.IsParallel(), "Only serial update is supported");
+  FeatureRecord(function, brain::ExecutionOperatingUnitType::INSERT,
+                brain::ExecutionOperatingUnitFeatureAttribute::NUM_ROWS, pipeline, CounterVal(num_inserts_));
+  FeatureRecord(function, brain::ExecutionOperatingUnitType::INSERT,
+                brain::ExecutionOperatingUnitFeatureAttribute::CARDINALITY, pipeline, CounterVal(num_inserts_));
+  FeatureArithmeticRecordMul(function, pipeline, GetTranslatorId(), CounterVal(num_inserts_));
 }
 
 void InsertTranslator::DeclareInserter(noisepage::execution::compiler::FunctionBuilder *builder) const {
@@ -144,11 +178,12 @@ void InsertTranslator::GetInsertPR(noisepage::execution::compiler::FunctionBuild
   builder->Append(GetCodeGen()->Assign(GetCodeGen()->MakeExpr(insert_pr_), get_pr_call));
 }
 
-void InsertTranslator::GenSetTablePR(FunctionBuilder *builder, WorkContext *context, uint32_t idx) const {
-  const auto &node_vals = GetPlanAs<planner::InsertPlanNode>().GetValues(idx);
-  for (size_t i = 0; i < node_vals.size(); i++) {
+void InsertTranslator::GenSetTablePR(
+    FunctionBuilder *builder, WorkContext *context,
+    const std::vector<common::ManagedPointer<parser::AbstractExpression>> &tuple) const {
+  for (size_t i = 0; i < tuple.size(); i++) {
     // @prSet(insert_pr, ...)
-    const auto &val = node_vals[i];
+    const auto &val = tuple[i];
     auto *src = context->DeriveValue(*val.Get(), this);
 
     const auto &table_col_oid = all_oids_[i];

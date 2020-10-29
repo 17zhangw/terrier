@@ -52,6 +52,9 @@ class InsertTranslator : public OperatorTranslator, public PipelineDriver {
    */
   void PerformPipelineWork(WorkContext *context, FunctionBuilder *function) const override;
 
+  void FinishPipelineWork(const Pipeline &pipeline, FunctionBuilder *function) const;
+  void RecordCounters(const Pipeline &pipeline, FunctionBuilder *function) const;
+
   /**
    * @return The child's output at the given index.
    */
@@ -83,11 +86,16 @@ class InsertTranslator : public OperatorTranslator, public PipelineDriver {
   // Declares the projected row that we will be using the insert values with.
   void DeclareInsertPR(FunctionBuilder *builder) const;
 
+  // Generates code to insert all tuple inside of tuples
+  void GenBulkInsert(FunctionBuilder *builder, WorkContext *context,
+                     const std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>> &tuples) const;
+
   // Gets the projected row pointer that we will fill in with values to insert.
   void GetInsertPR(FunctionBuilder *builder) const;
 
   // Sets the values in the projected row which we will use to insert into the table.
-  void GenSetTablePR(FunctionBuilder *builder, WorkContext *context, uint32_t idx) const;
+  void GenSetTablePR(FunctionBuilder *builder, WorkContext *context,
+                     const std::vector<common::ManagedPointer<parser::AbstractExpression>> &tuple) const;
 
   // Insert into the table.
   void GenTableInsert(FunctionBuilder *builder) const;
@@ -119,6 +127,8 @@ class InsertTranslator : public OperatorTranslator, public PipelineDriver {
 
   // The number of inserts that are performed.
   StateDescriptor::Entry num_inserts_;
+
+  bool is_insert_select_;
 };
 
 }  // namespace noisepage::execution::compiler

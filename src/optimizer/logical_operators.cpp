@@ -212,17 +212,11 @@ common::hash_t LogicalProjection::Hash() const {
 BaseOperatorNodeContents *LogicalInsert::Copy() const { return new LogicalInsert(*this); }
 
 Operator LogicalInsert::Make(
-    catalog::db_oid_t database_oid, catalog::table_oid_t table_oid, std::vector<catalog::col_oid_t> &&columns,
+    bool is_insert_select, catalog::db_oid_t database_oid, catalog::table_oid_t table_oid,
+    std::vector<catalog::col_oid_t> &&columns,
     common::ManagedPointer<std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>>> values) {
-#ifndef NDEBUG
-  // We need to check whether the number of values for each insert vector
-  // matches the number of columns
-  for (const auto &insert_vals : *values) {
-    NOISEPAGE_ASSERT(columns.size() == insert_vals.size(), "Mismatched number of columns and values");
-  }
-#endif
-
   auto *op = new LogicalInsert();
+  op->is_insert_select_ = is_insert_select;
   op->database_oid_ = database_oid;
   op->table_oid_ = table_oid;
   op->columns_ = std::move(columns);
@@ -232,13 +226,16 @@ Operator LogicalInsert::Make(
 
 common::hash_t LogicalInsert::Hash() const {
   common::hash_t hash = BaseOperatorNodeContents::Hash();
+  hash = common::HashUtil::CombineHashes(hash, common::HashUtil::Hash(is_insert_select_));
   hash = common::HashUtil::CombineHashes(hash, common::HashUtil::Hash(database_oid_));
   hash = common::HashUtil::CombineHashes(hash, common::HashUtil::Hash(table_oid_));
   hash = common::HashUtil::CombineHashInRange(hash, columns_.begin(), columns_.end());
 
   // Perform a deep hash of the values
-  for (const auto &insert_vals : *values_) {
-    hash = common::HashUtil::CombineHashInRange(hash, insert_vals.begin(), insert_vals.end());
+  if (values_ != nullptr) {
+    for (const auto &insert_vals : *values_) {
+      hash = common::HashUtil::CombineHashInRange(hash, insert_vals.begin(), insert_vals.end());
+    }
   }
 
   return hash;
@@ -247,37 +244,11 @@ common::hash_t LogicalInsert::Hash() const {
 bool LogicalInsert::operator==(const BaseOperatorNodeContents &r) {
   if (r.GetOpType() != OpType::LOGICALINSERT) return false;
   const LogicalInsert &node = *dynamic_cast<const LogicalInsert *>(&r);
+  if (is_insert_select_ != node.is_insert_select_) return false;
   if (database_oid_ != node.database_oid_) return false;
   if (table_oid_ != node.table_oid_) return false;
   if (columns_ != node.columns_) return false;
   if (values_ != node.values_) return false;
-  return (true);
-}
-
-//===--------------------------------------------------------------------===//
-// LogicalInsertSelect
-//===--------------------------------------------------------------------===//
-BaseOperatorNodeContents *LogicalInsertSelect::Copy() const { return new LogicalInsertSelect(*this); }
-
-Operator LogicalInsertSelect::Make(catalog::db_oid_t database_oid, catalog::table_oid_t table_oid) {
-  auto *op = new LogicalInsertSelect();
-  op->database_oid_ = database_oid;
-  op->table_oid_ = table_oid;
-  return Operator(common::ManagedPointer<BaseOperatorNodeContents>(op));
-}
-
-common::hash_t LogicalInsertSelect::Hash() const {
-  common::hash_t hash = BaseOperatorNodeContents::Hash();
-  hash = common::HashUtil::CombineHashes(hash, common::HashUtil::Hash(database_oid_));
-  hash = common::HashUtil::CombineHashes(hash, common::HashUtil::Hash(table_oid_));
-  return hash;
-}
-
-bool LogicalInsertSelect::operator==(const BaseOperatorNodeContents &r) {
-  if (r.GetOpType() != OpType::LOGICALINSERTSELECT) return false;
-  const LogicalInsertSelect &node = *dynamic_cast<const LogicalInsertSelect *>(&r);
-  if (database_oid_ != node.database_oid_) return false;
-  if (table_oid_ != node.table_oid_) return false;
   return (true);
 }
 
@@ -1256,8 +1227,6 @@ const char *OperatorNodeContents<LogicalAggregateAndGroupBy>::name = "LogicalAgg
 template <>
 const char *OperatorNodeContents<LogicalInsert>::name = "LogicalInsert";
 template <>
-const char *OperatorNodeContents<LogicalInsertSelect>::name = "LogicalInsertSelect";
-template <>
 const char *OperatorNodeContents<LogicalUpdate>::name = "LogicalUpdate";
 template <>
 const char *OperatorNodeContents<LogicalDelete>::name = "LogicalDelete";
@@ -1327,8 +1296,6 @@ template <>
 OpType OperatorNodeContents<LogicalAggregateAndGroupBy>::type = OpType::LOGICALAGGREGATEANDGROUPBY;
 template <>
 OpType OperatorNodeContents<LogicalInsert>::type = OpType::LOGICALINSERT;
-template <>
-OpType OperatorNodeContents<LogicalInsertSelect>::type = OpType::LOGICALINSERTSELECT;
 template <>
 OpType OperatorNodeContents<LogicalUpdate>::type = OpType::LOGICALUPDATE;
 template <>

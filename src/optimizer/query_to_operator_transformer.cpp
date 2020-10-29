@@ -387,17 +387,10 @@ void QueryToOperatorTransformer::Visit(common::ManagedPointer<parser::InsertStat
   auto target_table_id = accessor_->GetTableOid(target_table->GetTableName());
   auto target_db_id = db_oid_;
   transaction::TransactionContext *txn_context = accessor_->GetTxn().Get();
+  bool is_insert_select = op->GetInsertType() == parser::InsertType::SELECT;
 
-  if (op->GetInsertType() == parser::InsertType::SELECT) {
-    auto insert_expr = std::make_unique<OperatorNode>(
-        LogicalInsertSelect::Make(target_db_id, target_table_id).RegisterWithTxnContext(txn_context),
-        std::vector<std::unique_ptr<AbstractOptimizerNode>>{}, txn_context);
-    op->GetSelect()->Accept(common::ManagedPointer(this).CastManagedPointerTo<SqlNodeVisitor>());
-
-    insert_expr->PushChild(std::move(output_expr_));
-    output_expr_ = std::move(insert_expr);
-    return;
-  }
+  std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>> ins_sel;
+  if (is_insert_select) ins_sel.emplace_back(op->GetSelect()->GetSelectColumns());
 
   // column_objects represents the columns for the current table as defined in its schema
   auto column_objects = accessor_->GetSchema(target_table_id).GetColumns();
@@ -406,8 +399,9 @@ void QueryToOperatorTransformer::Visit(common::ManagedPointer<parser::InsertStat
   std::vector<catalog::col_oid_t> col_ids;
 
   // INSERT INTO table_name VALUES (val1, val2, ...), (val_a, val_b, ...), ...
+  auto insert_values = is_insert_select ? common::ManagedPointer(&ins_sel) : op->GetValues();
   if (op->GetInsertColumns()->empty()) {
-    for (const auto &values : *(op->GetValues())) {
+    for (const auto &values : *insert_values) {
       if (values.size() > column_objects.size()) {
         throw CATALOG_EXCEPTION("INSERT has more expressions than target columns");
       }
@@ -426,7 +420,7 @@ void QueryToOperatorTransformer::Visit(common::ManagedPointer<parser::InsertStat
   } else {
     // INSERT INTO table_name (col1, col2, ...) VALUES (val1, val2, ...), ...
     auto num_columns = op->GetInsertColumns()->size();
-    for (const auto &tuple : *(op->GetValues())) {  // check size of each tuple
+    for (const auto &tuple : *insert_values) {  // check size of each tuple
       if (tuple.size() > num_columns) {
         throw CATALOG_EXCEPTION("INSERT has more expressions than target columns");
       }
@@ -460,10 +454,15 @@ void QueryToOperatorTransformer::Visit(common::ManagedPointer<parser::InsertStat
     }
   }
 
-  auto insert_expr = std::make_unique<OperatorNode>(
-      LogicalInsert::Make(target_db_id, target_table_id, std::move(col_ids), op->GetValues())
-          .RegisterWithTxnContext(txn_context),
-      std::vector<std::unique_ptr<AbstractOptimizerNode>>{}, txn_context);
+  auto insert_expr =
+      std::make_unique<OperatorNode>(LogicalInsert::Make(is_insert_select, target_db_id, target_table_id,
+                                                         std::move(col_ids), is_insert_select ? nullptr : op->GetValues())
+                                         .RegisterWithTxnContext(txn_context),
+                                     std::vector<std::unique_ptr<AbstractOptimizerNode>>{}, txn_context);
+  if (is_insert_select) {
+    op->GetSelect()->Accept(common::ManagedPointer(this).CastManagedPointerTo<SqlNodeVisitor>());
+    insert_expr->PushChild(std::move(output_expr_));
+  }
   output_expr_ = std::move(insert_expr);
 }
 
@@ -591,20 +590,12 @@ void QueryToOperatorTransformer::Visit(common::ManagedPointer<parser::CopyStatem
     // The copy statement is reading from a file into a table. We construct a
     // logical external-file get operator as the leaf, and an insert operator
     // as the root.
-    auto get_op = std::make_unique<OperatorNode>(
-        LogicalExternalFileGet::Make(op->GetExternalFileFormat(), op->GetFilePath(), op->GetDelimiter(),
-                                     op->GetQuoteChar(), op->GetEscapeChar())
-            .RegisterWithTxnContext(txn_context),
-        std::vector<std::unique_ptr<AbstractOptimizerNode>>{}, txn_context);
-
-    auto target_table = op->GetCopyTable();
-
-    auto insert_op = std::make_unique<OperatorNode>(
-        LogicalInsertSelect::Make(db_oid_, accessor_->GetTableOid(target_table->GetTableName()))
-            .RegisterWithTxnContext(txn_context),
-        std::vector<std::unique_ptr<AbstractOptimizerNode>>{}, txn_context);
-    insert_op->PushChild(std::move(get_op));
-    output_expr_ = std::move(insert_op);
+    //
+    // We currently don't have a way of determining the type of data read from
+    // a file (i.e there is no type information available).
+    //
+    // Disabling this for now.
+    throw NOT_IMPLEMENTED_EXCEPTION("LogicalExternalFileGet into table is not supported");
 
   } else {
     if (op->GetSelectStatement() != nullptr) {

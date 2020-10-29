@@ -806,22 +806,12 @@ void PlanGenerator::Visit(const Insert *op) {
     builder.AddParameterInfo(col);
   }
 
-  // Schema of Insert is empty
+  if (op->IsInsertSelect()) {
+    builder.AddChild(std::move(children_plans_[0]));
+  }
+
   builder.SetOutputSchema(std::make_unique<planner::OutputSchema>());
   output_plan_ = builder.Build();
-}
-
-void PlanGenerator::Visit(const InsertSelect *op) {
-  // Schema of Insert is empty
-  NOISEPAGE_ASSERT(children_plans_.size() == 1, "InsertSelect needs 1 child plan");
-  auto output_schema = std::make_unique<planner::OutputSchema>();
-
-  output_plan_ = planner::InsertPlanNode::Builder()
-                     .SetOutputSchema(std::move(output_schema))
-                     .SetDatabaseOid(op->GetDatabaseOid())
-                     .SetTableOid(op->GetTableOid())
-                     .AddChild(std::move(children_plans_[0]))
-                     .Build();
 }
 
 void PlanGenerator::Visit(const Delete *op) {

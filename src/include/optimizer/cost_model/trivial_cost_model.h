@@ -139,12 +139,6 @@ class TrivialCostModel : public AbstractCostModel {
   void Visit(UNUSED_ATTRIBUTE const Insert *op) override {}
 
   /**
-   * Visit a InsertSelect operator
-   * @param op operator
-   */
-  void Visit(UNUSED_ATTRIBUTE const InsertSelect *op) override {}
-
-  /**
    * Visit a Delete operator
    * @param op operator
    */

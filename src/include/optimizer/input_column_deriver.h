@@ -162,12 +162,6 @@ class InputColumnDeriver : public OperatorVisitor {
   void Visit(const Insert *op) override;
 
   /**
-   * Visit function to derive input/output columns for InsertSelect
-   * @param op InsertSelectoperator to visit
-   */
-  void Visit(const InsertSelect *op) override;
-
-  /**
    * Visit function to derive input/output columns for Delete
    * @param op Delete operator to visit
    */

@@ -330,10 +330,11 @@ void LogicalInsertToPhysicalInsert::Transform(common::ManagedPointer<AbstractOpt
   std::vector<std::unique_ptr<AbstractOptimizerNode>> c;
   std::vector<catalog::col_oid_t> cols(insert_op->GetColumns());
   std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>> vals = *(insert_op->GetValues());
-  auto result = std::make_unique<OperatorNode>(Insert::Make(insert_op->GetDatabaseOid(), insert_op->GetTableOid(),
-                                                            std::move(cols), std::move(vals), std::move(indexes))
-                                                   .RegisterWithTxnContext(context->GetOptimizerContext()->GetTxn()),
-                                               std::move(c), context->GetOptimizerContext()->GetTxn());
+  auto result =
+      std::make_unique<OperatorNode>(Insert::Make(false, insert_op->GetDatabaseOid(), insert_op->GetTableOid(),
+                                                  std::move(cols), std::move(vals), std::move(indexes))
+                                         .RegisterWithTxnContext(context->GetOptimizerContext()->GetTxn()),
+                                     std::move(c), context->GetOptimizerContext()->GetTxn());
   transformed->emplace_back(std::move(result));
 }
 
@@ -342,7 +343,7 @@ void LogicalInsertToPhysicalInsert::Transform(common::ManagedPointer<AbstractOpt
 ///////////////////////////////////////////////////////////////////////////////
 LogicalInsertSelectToPhysicalInsertSelect::LogicalInsertSelectToPhysicalInsertSelect() {
   type_ = RuleType::INSERT_SELECT_TO_PHYSICAL;
-  match_pattern_ = new Pattern(OpType::LOGICALINSERTSELECT);
+  match_pattern_ = new Pattern(OpType::LOGICALINSERT);
 
   auto child = new Pattern(OpType::LEAF);
   match_pattern_->AddChild(child);
@@ -359,7 +360,7 @@ void LogicalInsertSelectToPhysicalInsertSelect::Transform(
     common::ManagedPointer<AbstractOptimizerNode> input,
     std::vector<std::unique_ptr<AbstractOptimizerNode>> *transformed,
     UNUSED_ATTRIBUTE OptimizationContext *context) const {
-  const auto insert_op = input->Contents()->GetContentsAs<LogicalInsertSelect>();
+  const auto insert_op = input->Contents()->GetContentsAs<LogicalInsert>();
   NOISEPAGE_ASSERT(input->GetChildren().size() == 1, "LogicalInsertSelect should have 1 child");
 
   // For now, insert any tuple will modify indexes
@@ -370,11 +371,14 @@ void LogicalInsertSelectToPhysicalInsertSelect::Transform(
   std::vector<std::unique_ptr<AbstractOptimizerNode>> c;
   auto child = input->GetChildren()[0]->Copy();
   c.emplace_back(std::move(child));
-  auto op = std::make_unique<OperatorNode>(
-      InsertSelect::Make(insert_op->GetDatabaseOid(), insert_op->GetTableOid(), std::move(indexes))
-          .RegisterWithTxnContext(context->GetOptimizerContext()->GetTxn()),
-      std::move(c), context->GetOptimizerContext()->GetTxn());
-  transformed->emplace_back(std::move(op));
+
+  std::vector<catalog::col_oid_t> cols(insert_op->GetColumns());
+  std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>> vals;
+  auto result = std::make_unique<OperatorNode>(Insert::Make(true, insert_op->GetDatabaseOid(), insert_op->GetTableOid(),
+                                                            std::move(cols), std::move(vals), std::move(indexes))
+                                                   .RegisterWithTxnContext(context->GetOptimizerContext()->GetTxn()),
+                                               std::move(c), context->GetOptimizerContext()->GetTxn());
+  transformed->emplace_back(std::move(result));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

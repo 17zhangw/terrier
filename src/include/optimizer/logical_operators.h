@@ -708,6 +708,7 @@ class LogicalAggregateAndGroupBy : public OperatorNodeContents<LogicalAggregateA
 class LogicalInsert : public OperatorNodeContents<LogicalInsert> {
  public:
   /**
+   * @param is_insert_select Whether INSERT is an INSERT SELECT
    * @param database_oid OID of the database
    * @param table_oid OID of the table
    * @param columns list of columns to insert into
@@ -715,7 +716,8 @@ class LogicalInsert : public OperatorNodeContents<LogicalInsert> {
    * @return
    */
   static Operator Make(
-      catalog::db_oid_t database_oid, catalog::table_oid_t table_oid, std::vector<catalog::col_oid_t> &&columns,
+      bool is_insert_select, catalog::db_oid_t database_oid, catalog::table_oid_t table_oid,
+      std::vector<catalog::col_oid_t> &&columns,
       common::ManagedPointer<std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>>> values);
 
   /**
@@ -750,7 +752,17 @@ class LogicalInsert : public OperatorNodeContents<LogicalInsert> {
     return values_;
   }
 
+  /**
+   * @return Whether is INSERT INTO [tbl] SELECT FROM [tbl]
+   */
+  bool IsInsertSelect() const { return is_insert_select_; }
+
  private:
+  /**
+   * Whether INSERT is an INSERT SELECT
+   */
+  bool is_insert_select_;
+
   /**
    * OID of the database
    */
@@ -771,49 +783,6 @@ class LogicalInsert : public OperatorNodeContents<LogicalInsert> {
    * The offset of an entry in this list corresponds to the offset in the columns_ list.
    */
   common::ManagedPointer<std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>>> values_;
-};
-
-/**
- * Logical operator for an Insert that uses the output from a Select
- */
-class LogicalInsertSelect : public OperatorNodeContents<LogicalInsertSelect> {
- public:
-  /**
-   * @param database_oid OID of the database
-   * @param table_oid OID of the table
-   * @return
-   */
-  static Operator Make(catalog::db_oid_t database_oid, catalog::table_oid_t table_oid);
-
-  /**
-   * Copy
-   * @returns copy of this
-   */
-  BaseOperatorNodeContents *Copy() const override;
-
-  bool operator==(const BaseOperatorNodeContents &r) override;
-  common::hash_t Hash() const override;
-
-  /**
-   * @return OID of the database
-   */
-  const catalog::db_oid_t &GetDatabaseOid() const { return database_oid_; }
-
-  /**
-   * @return OID of the table
-   */
-  const catalog::table_oid_t &GetTableOid() const { return table_oid_; }
-
- private:
-  /**
-   * OID of the database
-   */
-  catalog::db_oid_t database_oid_;
-
-  /**
-   * OID of the table
-   */
-  catalog::table_oid_t table_oid_;
 };
 
 /**

@@ -912,6 +912,7 @@ class OuterHashJoin : public OperatorNodeContents<OuterHashJoin> {
 class Insert : public OperatorNodeContents<Insert> {
  public:
   /**
+   * @param is_insert_select Whether INSERT is an INSERT SELECT
    * @param database_oid OID of the database
    * @param table_oid OID of the table
    * @param columns OIDs of columns to insert into
@@ -919,7 +920,7 @@ class Insert : public OperatorNodeContents<Insert> {
    * @param index_oids the OIDs of the indexes to insert into
    * @return an Insert operator
    */
-  static Operator Make(catalog::db_oid_t database_oid, catalog::table_oid_t table_oid,
+  static Operator Make(bool is_insert_select, catalog::db_oid_t database_oid, catalog::table_oid_t table_oid,
                        std::vector<catalog::col_oid_t> &&columns,
                        std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>> &&values,
                        std::vector<catalog::index_oid_t> &&index_oids);
@@ -960,7 +961,17 @@ class Insert : public OperatorNodeContents<Insert> {
    */
   const std::vector<catalog::index_oid_t> &GetIndexes() const { return index_oids_; }
 
+  /**
+   * @return Whether is INSERT INTO [tbl] SELECT FROM [tbl]
+   */
+  bool IsInsertSelect() const { return is_insert_select_; }
+
  private:
+  /**
+   * Whether INSERT is an INSERT SELECT
+   */
+  bool is_insert_select_;
+
   /**
    * OID of the database
    */
@@ -980,61 +991,6 @@ class Insert : public OperatorNodeContents<Insert> {
    * Expressions of values to insert
    */
   std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>> values_;
-
-  /**
-   * Indexes to insert into
-   */
-  std::vector<catalog::index_oid_t> index_oids_;
-};
-
-/**
- * Physical operator for INSERT INTO ... SELECT ...
- */
-class InsertSelect : public OperatorNodeContents<InsertSelect> {
- public:
-  /**
-   * @param database_oid OID of the database
-   * @param table_oid OID of the table
-   * @param index_oids the OIDs of the indexes to insert into
-   * @return an InsertSelect operator
-   */
-  static Operator Make(catalog::db_oid_t database_oid, catalog::table_oid_t table_oid,
-                       std::vector<catalog::index_oid_t> &&index_oids);
-
-  /**
-   * Copy
-   * @returns copy of this
-   */
-  BaseOperatorNodeContents *Copy() const override;
-
-  bool operator==(const BaseOperatorNodeContents &r) override;
-  common::hash_t Hash() const override;
-
-  /**
-   * @return OID of the database
-   */
-  const catalog::db_oid_t &GetDatabaseOid() const { return database_oid_; }
-
-  /**
-   * @return OID of the table
-   */
-  const catalog::table_oid_t &GetTableOid() const { return table_oid_; }
-
-  /**
-   * @return Index oids to insert into
-   */
-  const std::vector<catalog::index_oid_t> &GetIndexes() const { return index_oids_; }
-
- private:
-  /**
-   * OID of the database
-   */
-  catalog::db_oid_t database_oid_;
-
-  /**
-   * OID of the table
-   */
-  catalog::table_oid_t table_oid_;
 
   /**
    * Indexes to insert into

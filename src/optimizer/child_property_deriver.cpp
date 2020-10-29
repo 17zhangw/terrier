@@ -121,12 +121,10 @@ void ChildPropertyDeriver::Visit(UNUSED_ATTRIBUTE const LeftSemiHashJoin *op) { 
 
 void ChildPropertyDeriver::Visit(UNUSED_ATTRIBUTE const Insert *op) {
   std::vector<PropertySet *> child_input_properties;
-  output_.emplace_back(requirements_->Copy(), std::move(child_input_properties));
-}
+  if (op->IsInsertSelect()) {
+    child_input_properties.push_back(requirements_->Copy());
+  }
 
-void ChildPropertyDeriver::Visit(UNUSED_ATTRIBUTE const InsertSelect *op) {
-  // Let child fulfil all the required properties
-  std::vector<PropertySet *> child_input_properties{requirements_->Copy()};
   output_.emplace_back(requirements_->Copy(), std::move(child_input_properties));
 }
 

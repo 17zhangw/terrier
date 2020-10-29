@@ -633,7 +633,7 @@ bool OuterHashJoin::operator==(const BaseOperatorNodeContents &r) {
 //===--------------------------------------------------------------------===//
 BaseOperatorNodeContents *Insert::Copy() const { return new Insert(*this); }
 
-Operator Insert::Make(catalog::db_oid_t database_oid, catalog::table_oid_t table_oid,
+Operator Insert::Make(bool is_insert_select, catalog::db_oid_t database_oid, catalog::table_oid_t table_oid,
                       std::vector<catalog::col_oid_t> &&columns,
                       std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>> &&values,
                       std::vector<catalog::index_oid_t> &&index_oids) {
@@ -646,6 +646,7 @@ Operator Insert::Make(catalog::db_oid_t database_oid, catalog::table_oid_t table
 #endif
 
   auto *op = new Insert();
+  op->is_insert_select_ = is_insert_select;
   op->database_oid_ = database_oid;
   op->table_oid_ = table_oid;
   op->columns_ = std::move(columns);
@@ -656,6 +657,7 @@ Operator Insert::Make(catalog::db_oid_t database_oid, catalog::table_oid_t table
 
 common::hash_t Insert::Hash() const {
   common::hash_t hash = BaseOperatorNodeContents::Hash();
+  hash = common::HashUtil::CombineHashes(hash, common::HashUtil::Hash(is_insert_select_));
   hash = common::HashUtil::CombineHashes(hash, common::HashUtil::Hash(database_oid_));
   hash = common::HashUtil::CombineHashes(hash, common::HashUtil::Hash(table_oid_));
   hash = common::HashUtil::CombineHashInRange(hash, columns_.begin(), columns_.end());
@@ -671,39 +673,11 @@ common::hash_t Insert::Hash() const {
 bool Insert::operator==(const BaseOperatorNodeContents &r) {
   if (r.GetOpType() != OpType::INSERT) return false;
   const Insert &node = *dynamic_cast<const Insert *>(&r);
+  if (is_insert_select_ != node.is_insert_select_) return false;
   if (database_oid_ != node.database_oid_) return false;
   if (table_oid_ != node.table_oid_) return false;
   if (columns_ != node.columns_) return false;
   if (values_ != node.values_) return false;
-  return (true);
-}
-
-//===--------------------------------------------------------------------===//
-// InsertSelect
-//===--------------------------------------------------------------------===//
-BaseOperatorNodeContents *InsertSelect::Copy() const { return new InsertSelect(*this); }
-
-Operator InsertSelect::Make(catalog::db_oid_t database_oid, catalog::table_oid_t table_oid,
-                            std::vector<catalog::index_oid_t> &&index_oids) {
-  auto *insert_op = new InsertSelect();
-  insert_op->database_oid_ = database_oid;
-  insert_op->table_oid_ = table_oid;
-  insert_op->index_oids_ = index_oids;
-  return Operator(common::ManagedPointer<BaseOperatorNodeContents>(insert_op));
-}
-
-common::hash_t InsertSelect::Hash() const {
-  common::hash_t hash = BaseOperatorNodeContents::Hash();
-  hash = common::HashUtil::CombineHashes(hash, common::HashUtil::Hash(database_oid_));
-  hash = common::HashUtil::CombineHashes(hash, common::HashUtil::Hash(table_oid_));
-  return hash;
-}
-
-bool InsertSelect::operator==(const BaseOperatorNodeContents &r) {
-  if (r.GetOpType() != OpType::INSERTSELECT) return false;
-  const InsertSelect &node = *dynamic_cast<const InsertSelect *>(&r);
-  if (database_oid_ != node.database_oid_) return false;
-  if (table_oid_ != node.table_oid_) return false;
   return (true);
 }
 
@@ -1399,8 +1373,6 @@ const char *OperatorNodeContents<OuterHashJoin>::name = "OuterHashJoin";
 template <>
 const char *OperatorNodeContents<Insert>::name = "Insert";
 template <>
-const char *OperatorNodeContents<InsertSelect>::name = "InsertSelect";
-template <>
 const char *OperatorNodeContents<Delete>::name = "Delete";
 template <>
 const char *OperatorNodeContents<Update>::name = "Update";
@@ -1478,8 +1450,6 @@ template <>
 OpType OperatorNodeContents<OuterHashJoin>::type = OpType::OUTERHASHJOIN;
 template <>
 OpType OperatorNodeContents<Insert>::type = OpType::INSERT;
-template <>
-OpType OperatorNodeContents<InsertSelect>::type = OpType::INSERTSELECT;
 template <>
 OpType OperatorNodeContents<Delete>::type = OpType::DELETE;
 template <>

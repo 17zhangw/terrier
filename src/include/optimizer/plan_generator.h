@@ -182,12 +182,6 @@ class PlanGenerator : public OperatorVisitor {
   void Visit(const Insert *op) override;
 
   /**
-   * Visitor function for a InsertSelect operator
-   * @param op InsertSelect operator being visited
-   */
-  void Visit(const InsertSelect *op) override;
-
-  /**
    * Visitor function for a Delete operator
    * @param op Delete operator being visited
    */

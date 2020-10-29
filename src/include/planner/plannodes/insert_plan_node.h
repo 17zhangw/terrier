@@ -173,6 +173,11 @@ class InsertPlanNode : public AbstractPlanNode {
   }
 
   /**
+   * @return all values to be inserted
+   */
+  const std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>> &GetBulkValues() const { return values_; }
+
+  /**
    * @return the information of insert parameters
    */
   const std::vector<catalog::col_oid_t> &GetParameterInfo() const { return parameter_info_; }

@@ -152,12 +152,6 @@ class ChildPropertyDeriver : public OperatorVisitor {
   void Visit(const Insert *op) override;
 
   /**
-   * Visitor function for InsertSelect
-   * @param op InsertSelect operator to visit
-   */
-  void Visit(const InsertSelect *op) override;
-
-  /**
    * Visitor function for Delete
    * @param op Delete operator to visit
    */

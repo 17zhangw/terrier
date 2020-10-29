@@ -229,11 +229,14 @@ void InputColumnDeriver::Visit(UNUSED_ATTRIBUTE const OuterHashJoin *op) {
 }
 
 void InputColumnDeriver::Visit(UNUSED_ATTRIBUTE const Insert *op) {
+  if (op->IsInsertSelect()) {
+    Passdown();
+    return;
+  }
+
   auto input = std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>>{};
   output_input_cols_ = std::make_pair(std::move(required_cols_), std::move(input));
 }
-
-void InputColumnDeriver::Visit(UNUSED_ATTRIBUTE const InsertSelect *op) { Passdown(); }
 
 void InputColumnDeriver::InputBaseTableColumns(const std::string &alias, catalog::db_oid_t db,
                                                catalog::table_oid_t tbl) {

@@ -10,6 +10,7 @@
 #include "optimizer/query_to_operator_transformer.h"
 #include "optimizer/statistics/stats_storage.h"
 #include "parser/drop_statement.h"
+#include "parser/insert_statement.h"
 #include "parser/parser_defs.h"
 #include "parser/postgresparser.h"
 #include "parser/transaction_statement.h"
@@ -58,6 +59,11 @@ std::unique_ptr<planner::AbstractPlanNode> TrafficCopUtil::Optimize(
 
       auto sort_prop = new optimizer::PropertySort(sort_exprs, sort_dirs);
       property_set.AddProperty(sort_prop);
+    }
+  } else if (type == parser::StatementType::INSERT) {
+    const auto ins_stmt = query->GetStatement(0).CastManagedPointerTo<parser::InsertStatement>();
+    if (ins_stmt->GetSelect() != nullptr) {
+      output = ins_stmt->GetSelect()->GetSelectColumns();
     }
   }
 

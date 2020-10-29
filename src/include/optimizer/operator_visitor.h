@@ -21,7 +21,6 @@ class LeftSemiHashJoin;
 class RightHashJoin;
 class OuterHashJoin;
 class Insert;
-class InsertSelect;
 class Delete;
 class Update;
 class HashGroupBy;
@@ -57,7 +56,6 @@ class LogicalOuterJoin;
 class LogicalSemiJoin;
 class LogicalAggregateAndGroupBy;
 class LogicalInsert;
-class LogicalInsertSelect;
 class LogicalDelete;
 class LogicalUpdate;
 class LogicalLimit;
@@ -197,12 +195,6 @@ class OperatorVisitor {
    * @param insert operator
    */
   virtual void Visit(const Insert *insert) {}
-
-  /**
-   * Visit a InsertSelect operator
-   * @param insert_select operator
-   */
-  virtual void Visit(const InsertSelect *insert_select) {}
 
   /**
    * Visit a Delete operator
@@ -412,12 +404,6 @@ class OperatorVisitor {
    * @param logical_insert operator
    */
   virtual void Visit(const LogicalInsert *logical_insert) {}
-
-  /**
-   * Visit a LogicalInsertSelect operator
-   * @param logical_insert_select operator
-   */
-  virtual void Visit(const LogicalInsertSelect *logical_insert_select) {}
 
   /**
    * Visit a LogicalDelete operator
