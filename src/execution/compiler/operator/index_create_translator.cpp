@@ -112,13 +112,22 @@ void IndexCreateTranslator::TearDownPipelineState(const Pipeline &pipeline, Func
 }
 
 util::RegionVector<ast::FieldDecl *> IndexCreateTranslator::GetWorkerParams() const {
-  // Parameters for the scanner
   auto *codegen = GetCodeGen();
-  auto *tvi_type = codegen->PointerType(ast::BuiltinType::TableVectorIterator);
-  return codegen->MakeFieldList({codegen->MakeField(tvi_var_, tvi_type)});
+  if (GetPipeline()->IsParallel()) {
+    // Parameters for the scanner auto *codegen = GetCodeGen();
+    auto *tvi_type = codegen->PointerType(ast::BuiltinType::TableVectorIterator);
+    return codegen->MakeFieldList({codegen->MakeField(tvi_var_, tvi_type)});
+  }
+
+  return codegen->MakeFieldList({});
 }
 
 void IndexCreateTranslator::LaunchWork(FunctionBuilder *function, ast::Identifier work_func) const {
+  if (!GetPipeline()->IsParallel()) {
+    GetPipeline()->LaunchSerialWork(function);
+    return;
+  }
+
   auto *exec_ctx = GetExecutionContext();
   auto *codegen = GetCodeGen();
   if (IsPipelineMetricsEnabled()) {

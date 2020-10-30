@@ -145,6 +145,7 @@ namespace noisepage::execution::ast {
   F(AggHashTableLookup, aggHTLookup)                                    \
   F(AggHashTableProcessBatch, aggHTProcessBatch)                        \
   F(AggHashTableMovePartitions, aggHTMoveParts)                         \
+  F(AggHashTablePartitionedScan, aggHTPartScan)                         \
   F(AggHashTableParallelPartitionedScan, aggHTParallelPartScan)         \
   F(AggHashTableFree, aggHTFree)                                        \
   F(AggHashTableIterInit, aggHTIterInit)                                \

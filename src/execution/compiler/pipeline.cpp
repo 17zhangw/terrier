@@ -253,11 +253,8 @@ ast::FunctionDecl *Pipeline::GenerateInitPipelineFunction() const {
 
 ast::FunctionDecl *Pipeline::GeneratePipelineWorkFunction() const {
   auto params = PipelineParams();
-
-  if (IsParallel()) {
-    auto additional_params = driver_->GetWorkerParams();
-    params.insert(params.end(), additional_params.begin(), additional_params.end());
-  }
+  auto additional_params = driver_->GetWorkerParams();
+  params.insert(params.end(), additional_params.begin(), additional_params.end());
 
   FunctionBuilder builder(codegen_, GetWorkFunctionName(), std::move(params), codegen_->Nil());
   {
@@ -267,27 +264,30 @@ ast::FunctionDecl *Pipeline::GeneratePipelineWorkFunction() const {
       for (auto *op : steps_) {
         op->BeginParallelPipelineWork(*this, &builder);
       }
-
-      InjectStartResourceTracker(&builder, false);
     }
+
+    InjectStartResourceTracker(&builder, false);
 
     // Create the working context and push it through the pipeline.
     WorkContext context(compilation_context_, *this);
     (*Begin())->PerformPipelineWork(&context, &builder);
 
+    InjectEndResourceTracker(&builder, false);
     if (IsParallel()) {
       for (auto *op : steps_) {
         op->EndParallelPipelineWork(*this, &builder);
       }
-
-      InjectEndResourceTracker(&builder, false);
     }
   }
   return builder.Finish();
 }
 
+void Pipeline::LaunchSerialWork(FunctionBuilder *builder) const {
+  builder->Append(
+      codegen_->Call(GetWorkFunctionName(), {builder->GetParameterByPosition(0), codegen_->MakeExpr(state_var_)}));
+}
+
 ast::FunctionDecl *Pipeline::GenerateRunPipelineFunction() const {
-  bool started_tracker = false;
   auto name = codegen_->MakeIdentifier(CreatePipelineFunctionName("Run"));
   FunctionBuilder builder(codegen_, name, compilation_context_->QueryParams(), codegen_->Nil());
   {
@@ -308,26 +308,13 @@ ast::FunctionDecl *Pipeline::GenerateRunPipelineFunction() const {
     builder.Append(codegen_->DeclareVarWithInit(state_var_, state));
 
     // Launch pipeline work.
-    if (IsParallel()) {
-      driver_->LaunchWork(&builder, GetWorkFunctionName());
-    } else {
-      // SerialWork(queryState, pipelineState)
-      InjectStartResourceTracker(&builder, false);
-      started_tracker = true;
-
-      builder.Append(
-          codegen_->Call(GetWorkFunctionName(), {builder.GetParameterByPosition(0), codegen_->MakeExpr(state_var_)}));
-    }
+    driver_->LaunchWork(&builder, GetWorkFunctionName());
 
     // TODO(abalakum): This shouldn't actually be dependent on order and the loop can be simplified
     // after issue #1154 is fixed
     // Let the operators perform some completion work in this pipeline.
     for (auto iter = Begin(), end = End(); iter != end; ++iter) {
       (*iter)->FinishPipelineWork(*this, &builder);
-    }
-
-    if (started_tracker) {
-      InjectEndResourceTracker(&builder, false);
     }
   }
 

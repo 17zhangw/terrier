@@ -1054,8 +1054,20 @@ class CodeGen {
    * @param worker_fn The name of the function used to scan over a partition of the hash table.
    * @return The call.
    */
-  [[nodiscard]] ast::Expr *AggHashTableParallelScan(ast::Expr *agg_ht, ast::Expr *query_state,
-                                                    ast::Expr *thread_state_container, ast::Identifier worker_fn);
+  [[nodiscard]] ast::Expr *AggHashTableParallelPartitionedScan(ast::Expr *agg_ht, ast::Expr *query_state,
+                                                               ast::Expr *thread_state_container,
+                                                               ast::Identifier worker_fn);
+
+  /**
+   * Call \@aggHTPartScan(). Performs a partitioned scan over an aggregation hash
+   * table, using the provided worker function as a callback.
+   * @param agg_ht A pointer to the global hash table.
+   * @param query_state A pointer to the query state.
+   * @param worker_fn The name of the function used to scan over a partition of the hash table.
+   * @return The call.
+   */
+  [[nodiscard]] ast::Expr *AggHashTablePartitionedScan(ast::Expr *agg_ht, ast::Expr *query_state,
+                                                       ast::Identifier worker_fn);
 
   /**
    * Call \@aggHTFree(). Cleans up and destroys the provided aggregation hash table.

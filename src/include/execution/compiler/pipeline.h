@@ -197,6 +197,8 @@ class Pipeline {
    */
   void InjectEndResourceTracker(FunctionBuilder *builder, bool is_hook) const;
 
+  void LaunchSerialWork(FunctionBuilder *builder) const;
+
   /**
    * @return query identifier of the query that we are codegen-ing
    */

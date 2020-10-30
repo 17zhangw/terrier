@@ -1,7 +1,6 @@
 #pragma once
 
 #include "execution/compiler/operator/operator_translator.h"
-#include "execution/compiler/pipeline_driver.h"
 
 namespace noisepage::planner {
 class ProjectionPlanNode;
@@ -12,7 +11,7 @@ namespace noisepage::execution::compiler {
 /**
  * Translator for projections.
  */
-class ProjectionTranslator : public OperatorTranslator, public PipelineDriver {
+class ProjectionTranslator : public OperatorTranslator {
  public:
   /**
    * Create a translator for the given plan.
@@ -36,14 +35,6 @@ class ProjectionTranslator : public OperatorTranslator, public PipelineDriver {
   ast::Expr *GetTableColumn(catalog::col_oid_t col_oid) const override {
     UNREACHABLE("Projections do not produce columns from base tables.");
   }
-
-  /** @return Throw an error, this is serial for now. */
-  util::RegionVector<ast::FieldDecl *> GetWorkerParams() const override { UNREACHABLE("Projection is serial."); };
-
-  /** @return Throw an error, this is serial for now. */
-  void LaunchWork(FunctionBuilder *function, ast::Identifier work_func_name) const override {
-    UNREACHABLE("Projection is serial.");
-  };
 
   bool IsCountersPassThrough() const override { return true; }
 };

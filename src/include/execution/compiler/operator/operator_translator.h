@@ -7,6 +7,7 @@
 #include "common/macros.h"
 #include "execution/ast/ast_fwd.h"
 #include "execution/compiler/expression/column_value_provider.h"
+#include "execution/compiler/pipeline_driver.h"
 #include "execution/compiler/state_descriptor.h"
 #include "execution/exec_defs.h"
 #include "execution/util/region_containers.h"
@@ -84,7 +85,7 @@ class WorkContext;
  * DefineHelperFunctions(), respectively. All helper structures and functions are visible across the
  * whole query and must be declared in the provided input container.
  */
-class OperatorTranslator : public ColumnValueProvider {
+class OperatorTranslator : public ColumnValueProvider, public PipelineDriver {
  public:
   /**
    * Create a translator.
@@ -253,6 +254,12 @@ class OperatorTranslator : public ColumnValueProvider {
 
   /** @return The address of the current tuple slot, if any. */
   virtual ast::Expr *GetSlotAddress() const { UNREACHABLE("This translator does not deal with tupleslots."); }
+
+  /** @return Throw an error, this is serial for now. */
+  virtual util::RegionVector<ast::FieldDecl *> GetWorkerParams() const override;
+
+  /** @return Throw an error, this is serial for now. */
+  virtual void LaunchWork(FunctionBuilder *function, UNUSED_ATTRIBUTE ast::Identifier work_func_name) const override;
 
  protected:
   /** Get the code generator instance. */

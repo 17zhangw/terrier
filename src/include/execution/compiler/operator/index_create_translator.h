@@ -3,8 +3,6 @@
 #include <vector>
 
 #include "execution/compiler/operator/operator_translator.h"
-#include "execution/compiler/pipeline.h"
-#include "execution/compiler/pipeline_driver.h"
 #include "storage/storage_defs.h"
 
 namespace noisepage::catalog {
@@ -22,7 +20,7 @@ class FunctionBuilder;
 /**
  * A translator for sequential table scans.
  */
-class IndexCreateTranslator : public OperatorTranslator, public PipelineDriver {
+class IndexCreateTranslator : public OperatorTranslator {
  public:
   /**
    * Create a translator for the given plan.

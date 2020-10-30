@@ -5,8 +5,6 @@
 
 #include "execution/compiler/operator/distinct_aggregation_util.h"
 #include "execution/compiler/operator/operator_translator.h"
-#include "execution/compiler/pipeline.h"
-#include "execution/compiler/pipeline_driver.h"
 
 namespace noisepage::planner {
 class AggregatePlanNode;
@@ -19,7 +17,7 @@ class FunctionBuilder;
 /**
  * A translator for static aggregations.
  */
-class StaticAggregationTranslator : public OperatorTranslator, public PipelineDriver {
+class StaticAggregationTranslator : public OperatorTranslator {
  public:
   /**
    * Create a new translator for the given static aggregation  plan. The translator occurs within
@@ -80,14 +78,6 @@ class StaticAggregationTranslator : public OperatorTranslator, public PipelineDr
    * @param function The function being built.
    */
   void FinishPipelineWork(const Pipeline &pipeline, FunctionBuilder *function) const override;
-
-  util::RegionVector<ast::FieldDecl *> GetWorkerParams() const override {
-    UNREACHABLE("Static aggregations are never launched in parallel");
-  }
-
-  void LaunchWork(FunctionBuilder *function, ast::Identifier work_func_name) const override {
-    UNREACHABLE("Static aggregations are never launched in parallel");
-  }
 
   /**
    * @return The value (vector) of the attribute at the given index (@em attr_idx) produced by the

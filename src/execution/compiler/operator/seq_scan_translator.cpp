@@ -317,14 +317,22 @@ void SeqScanTranslator::PerformPipelineWork(WorkContext *context, FunctionBuilde
 
 util::RegionVector<ast::FieldDecl *> SeqScanTranslator::GetWorkerParams() const {
   auto *codegen = GetCodeGen();
-  auto *tvi_type = codegen->PointerType(ast::BuiltinType::TableVectorIterator);
-  return codegen->MakeFieldList({codegen->MakeField(tvi_var_, tvi_type)});
+  if (GetPipeline()->IsParallel()) {
+    auto *tvi_type = codegen->PointerType(ast::BuiltinType::TableVectorIterator);
+    return codegen->MakeFieldList({codegen->MakeField(tvi_var_, tvi_type)});
+  }
+
+  return codegen->MakeFieldList({});
 }
 
 void SeqScanTranslator::LaunchWork(FunctionBuilder *function, ast::Identifier work_func) const {
-  DeclareColOids(function);
-  function->Append(GetCodeGen()->IterateTableParallel(GetTableOid(), col_oids_var_, GetQueryStatePtr(),
-                                                      GetExecutionContext(), work_func));
+  if (GetPipeline()->IsParallel()) {
+    DeclareColOids(function);
+    function->Append(GetCodeGen()->IterateTableParallel(GetTableOid(), col_oids_var_, GetQueryStatePtr(),
+                                                        GetExecutionContext(), work_func));
+  } else {
+    GetPipeline()->LaunchSerialWork(function);
+  }
 }
 
 ast::Expr *SeqScanTranslator::GetTableColumn(catalog::col_oid_t col_oid) const {

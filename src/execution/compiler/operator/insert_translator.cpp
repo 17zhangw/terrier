@@ -29,10 +29,13 @@ InsertTranslator::InsertTranslator(const planner::InsertPlanNode &plan, Compilat
                     ->GetTable(GetPlanAs<planner::InsertPlanNode>().GetTableOid())
                     ->ProjectionMapForOids(all_oids_)) {
   is_insert_select_ = plan.GetChildren().size() == 1;
-  pipeline->RegisterSource(this, Pipeline::Parallelism::Serial);
   if (is_insert_select_) {
+    // For an insert with select, the driver is the rest of the pipeline
     compilation_context->Prepare(*plan.GetChild(0), pipeline);
+    pipeline->UpdateParallelism(Pipeline::Parallelism::Serial);
   } else {
+    // This is the driver for insert without selects
+    pipeline->RegisterSource(this, Pipeline::Parallelism::Serial);
     for (uint32_t idx = 0; idx < plan.GetBulkInsertCount(); idx++) {
       const auto &node_vals = GetPlanAs<planner::InsertPlanNode>().GetValues(idx);
       for (const auto &node_val : node_vals) {

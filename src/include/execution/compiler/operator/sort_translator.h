@@ -4,7 +4,6 @@
 
 #include "execution/compiler/operator/operator_translator.h"
 #include "execution/compiler/pipeline.h"
-#include "execution/compiler/pipeline_driver.h"
 
 namespace noisepage::planner {
 class OrderByPlanNode;
@@ -17,7 +16,7 @@ class FunctionBuilder;
 /**
  * A translator for order-by plans.
  */
-class SortTranslator : public OperatorTranslator, public PipelineDriver {
+class SortTranslator : public OperatorTranslator {
  public:
   /**
    * Create a translator for the given order-by plan node.
@@ -89,18 +88,6 @@ class SortTranslator : public OperatorTranslator, public PipelineDriver {
    * @param function The pipeline generating function.
    */
   void FinishPipelineWork(const Pipeline &pipeline, FunctionBuilder *function) const override;
-
-  /**
-   * Sorters are never launched in parallel, so this should never occur..
-   */
-  util::RegionVector<ast::FieldDecl *> GetWorkerParams() const override { UNREACHABLE("Impossible"); }
-
-  /**
-   * Sorters are never launched in parallel, so this should never occur.
-   */
-  void LaunchWork(FunctionBuilder *function, ast::Identifier work_func_name) const override {
-    UNREACHABLE("Impossible");
-  }
 
   /**
    * @return The value (vector) of the attribute at the given index (@em attr_idx) produced by the

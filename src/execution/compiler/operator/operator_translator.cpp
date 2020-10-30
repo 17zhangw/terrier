@@ -245,4 +245,12 @@ util::RegionVector<ast::FieldDecl *> OperatorTranslator::GetHookParams(const Pip
   return params;
 }
 
+util::RegionVector<ast::FieldDecl *> OperatorTranslator::GetWorkerParams() const {
+  return GetCodeGen()->MakeFieldList({});
+};
+
+void OperatorTranslator::LaunchWork(FunctionBuilder *function, UNUSED_ATTRIBUTE ast::Identifier work_func_name) const {
+  GetPipeline()->LaunchSerialWork(function);
+};
+
 }  // namespace noisepage::execution::compiler

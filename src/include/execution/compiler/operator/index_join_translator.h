@@ -6,7 +6,6 @@
 
 #include "execution/ast/identifier.h"
 #include "execution/compiler/operator/operator_translator.h"
-#include "execution/compiler/pipeline_driver.h"
 #include "planner/plannodes/plan_node_defs.h"
 #include "storage/storage_defs.h"
 
@@ -24,7 +23,7 @@ namespace noisepage::execution::compiler {
 /**
  * Index join translator.
  */
-class IndexJoinTranslator : public OperatorTranslator, public PipelineDriver {
+class IndexJoinTranslator : public OperatorTranslator {
  public:
   /** Translate IndexJoinPlanNode. */
   IndexJoinTranslator(const planner::IndexJoinPlanNode &plan, CompilationContext *compilation_context,
@@ -50,14 +49,6 @@ class IndexJoinTranslator : public OperatorTranslator, public PipelineDriver {
   ast::Expr *GetTableColumn(catalog::col_oid_t col_oid) const override;
 
   ast::Expr *GetSlotAddress() const override;
-
-  /** @return Throw an error, this is serial for now. */
-  util::RegionVector<ast::FieldDecl *> GetWorkerParams() const override { UNREACHABLE("Index join is serial."); };
-
-  /** @return Throw an error, this is serial for now. */
-  void LaunchWork(FunctionBuilder *function, ast::Identifier work_func_name) const override {
-    UNREACHABLE("Index join is serial.");
-  };
 
  private:
   void DeclareIterator(FunctionBuilder *builder) const;

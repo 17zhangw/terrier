@@ -4,8 +4,6 @@
 
 #include "execution/compiler/operator/distinct_aggregation_util.h"
 #include "execution/compiler/operator/operator_translator.h"
-#include "execution/compiler/pipeline.h"
-#include "execution/compiler/pipeline_driver.h"
 
 namespace noisepage::planner {
 class AggregatePlanNode;
@@ -18,7 +16,7 @@ class FunctionBuilder;
 /**
  * A translator for hash-based aggregations.
  */
-class HashAggregationTranslator : public OperatorTranslator, public PipelineDriver {
+class HashAggregationTranslator : public OperatorTranslator {
  public:
   /**
    * Create a new translator for the given aggregation plan.
@@ -181,6 +179,8 @@ class HashAggregationTranslator : public OperatorTranslator, public PipelineDriv
 
   /** Generate end hook function for parallel merge */
   ast::FunctionDecl *GenerateEndHookFunction() const;
+
+  ast::FunctionDecl *GenerateSerialPartitionScanFunction(WorkContext *context) const;
 
  private:
   friend class brain::OperatingUnitRecorder;

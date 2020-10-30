@@ -415,6 +415,24 @@ void Sema::CheckBuiltinAggHashTableCall(ast::CallExpr *call, ast::Builtin builti
       call->SetType(GetBuiltinType(ast::BuiltinType::Nil));
       break;
     }
+    case ast::Builtin::AggHashTablePartitionedScan: {
+      if (!CheckArgCount(call, 3)) {
+        return;
+      }
+      // Second argument is an opaque context pointer
+      if (!args[1]->GetType()->IsPointerType()) {
+        ReportIncorrectCallArg(call, 1, GetBuiltinType(agg_ht_kind));
+        return;
+      }
+      // Third argument is the scanning function
+      if (!args[2]->GetType()->IsFunctionType()) {
+        GetErrorReporter()->Report(args[2]->Position(), ErrorMessages::kBadParallelScanFunction, args[2]->GetType());
+        return;
+      }
+
+      call->SetType(GetBuiltinType(ast::BuiltinType::Nil));
+      break;
+    }
     case ast::Builtin::AggHashTableParallelPartitionedScan: {
       if (!CheckArgCount(call, 4)) {
         return;
@@ -3327,6 +3345,7 @@ void Sema::CheckBuiltinCall(ast::CallExpr *call) {
     case ast::Builtin::AggHashTableLookup:
     case ast::Builtin::AggHashTableProcessBatch:
     case ast::Builtin::AggHashTableMovePartitions:
+    case ast::Builtin::AggHashTablePartitionedScan:
     case ast::Builtin::AggHashTableParallelPartitionedScan:
     case ast::Builtin::AggHashTableFree: {
       CheckBuiltinAggHashTableCall(call, builtin);

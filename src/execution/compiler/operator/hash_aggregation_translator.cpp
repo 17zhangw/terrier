@@ -606,7 +606,7 @@ void HashAggregationTranslator::PerformPipelineWork(WorkContext *context, Functi
   } else {
     NOISEPAGE_ASSERT(IsProducePipeline(context->GetPipeline()), "Pipeline is unknown to hash aggregation translator");
     ast::Expr *agg_ht;
-    if (GetPipeline()->IsParallel()) {
+    if (GetPipeline()->IsParallel() || build_pipeline_.IsParallel()) {
       // In parallel-mode, we would've issued a parallel partitioned scan. In
       // this case, the aggregation hash table we're to scan is provided as a
       // function parameter; specifically, the last argument in the worker
@@ -667,17 +667,26 @@ ast::Expr *HashAggregationTranslator::GetChildOutput(WorkContext *context, uint3
 }
 
 util::RegionVector<ast::FieldDecl *> HashAggregationTranslator::GetWorkerParams() const {
-  NOISEPAGE_ASSERT(build_pipeline_.IsParallel(), "Should not issue parallel scan if pipeline isn't parallelized.");
   auto *codegen = GetCodeGen();
-  return codegen->MakeFieldList({codegen->MakeField(codegen->MakeIdentifier("aggHashTable"),
-                                                    codegen->PointerType(ast::BuiltinType::AggregationHashTable))});
+  if (build_pipeline_.IsParallel()) {
+    return codegen->MakeFieldList({codegen->MakeField(codegen->MakeIdentifier("aggHashTable"),
+                                                      codegen->PointerType(ast::BuiltinType::AggregationHashTable))});
+  }
+
+  return codegen->MakeFieldList({});
 }
 
 void HashAggregationTranslator::LaunchWork(FunctionBuilder *function, ast::Identifier work_func_name) const {
-  NOISEPAGE_ASSERT(build_pipeline_.IsParallel(), "Should not issue parallel scan if pipeline isn't parallelized.");
   auto *codegen = GetCodeGen();
-  function->Append(codegen->AggHashTableParallelScan(global_agg_ht_.GetPtr(codegen), GetQueryStatePtr(),
-                                                     GetThreadStateContainer(), work_func_name));
+  if (GetPipeline()->IsParallel()) {
+    function->Append(codegen->AggHashTableParallelPartitionedScan(global_agg_ht_.GetPtr(codegen), GetQueryStatePtr(),
+                                                                  GetThreadStateContainer(), work_func_name));
+  } else if (build_pipeline_.IsParallel()) {
+    function->Append(
+        codegen->AggHashTablePartitionedScan(global_agg_ht_.GetPtr(codegen), GetQueryStatePtr(), work_func_name));
+  } else {
+    GetPipeline()->LaunchSerialWork(function);
+  }
 }
 
 }  // namespace noisepage::execution::compiler

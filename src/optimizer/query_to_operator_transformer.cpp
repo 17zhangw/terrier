@@ -454,11 +454,11 @@ void QueryToOperatorTransformer::Visit(common::ManagedPointer<parser::InsertStat
     }
   }
 
-  auto insert_expr =
-      std::make_unique<OperatorNode>(LogicalInsert::Make(is_insert_select, target_db_id, target_table_id,
-                                                         std::move(col_ids), is_insert_select ? nullptr : op->GetValues())
-                                         .RegisterWithTxnContext(txn_context),
-                                     std::vector<std::unique_ptr<AbstractOptimizerNode>>{}, txn_context);
+  auto insert_expr = std::make_unique<OperatorNode>(
+      LogicalInsert::Make(is_insert_select, target_db_id, target_table_id, std::move(col_ids),
+                          is_insert_select ? nullptr : op->GetValues())
+          .RegisterWithTxnContext(txn_context),
+      std::vector<std::unique_ptr<AbstractOptimizerNode>>{}, txn_context);
   if (is_insert_select) {
     op->GetSelect()->Accept(common::ManagedPointer(this).CastManagedPointerTo<SqlNodeVisitor>());
     insert_expr->PushChild(std::move(output_expr_));

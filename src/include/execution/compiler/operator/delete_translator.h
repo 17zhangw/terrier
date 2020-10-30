@@ -4,7 +4,6 @@
 
 #include "execution/ast/identifier.h"
 #include "execution/compiler/operator/operator_translator.h"
-#include "execution/compiler/pipeline_driver.h"
 
 namespace noisepage::catalog {
 class Schema;
@@ -19,7 +18,7 @@ namespace noisepage::execution::compiler {
 /**
  * Delete Translator
  */
-class DeleteTranslator : public OperatorTranslator, public PipelineDriver {
+class DeleteTranslator : public OperatorTranslator {
  public:
   /**
    * Create a new translator for the given delete plan. The compilation occurs within the
@@ -58,14 +57,6 @@ class DeleteTranslator : public OperatorTranslator, public PipelineDriver {
    * @return An expression representing the value of the column with the given OID.
    */
   ast::Expr *GetTableColumn(catalog::col_oid_t col_oid) const override { UNREACHABLE("Delete doesn't provide values"); }
-
-  /** @return Throw an error, this is serial for now. */
-  util::RegionVector<ast::FieldDecl *> GetWorkerParams() const override { UNREACHABLE("Delete is serial."); };
-
-  /** @return Throw an error, this is serial for now. */
-  void LaunchWork(FunctionBuilder *function, ast::Identifier work_func_name) const override {
-    UNREACHABLE("Delete is serial.");
-  };
 
  private:
   // Declare the deleter storage interface.

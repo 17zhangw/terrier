@@ -973,10 +973,16 @@ ast::Expr *CodeGen::AggHashTableMovePartitions(ast::Expr *agg_ht, ast::Expr *tls
   return call;
 }
 
-ast::Expr *CodeGen::AggHashTableParallelScan(ast::Expr *agg_ht, ast::Expr *query_state,
-                                             ast::Expr *thread_state_container, ast::Identifier worker_fn) {
+ast::Expr *CodeGen::AggHashTableParallelPartitionedScan(ast::Expr *agg_ht, ast::Expr *query_state,
+                                                        ast::Expr *thread_state_container, ast::Identifier worker_fn) {
   ast::Expr *call = CallBuiltin(ast::Builtin::AggHashTableParallelPartitionedScan,
                                 {agg_ht, query_state, thread_state_container, MakeExpr(worker_fn)});
+  call->SetType(ast::BuiltinType::Get(context_, ast::BuiltinType::Nil));
+  return call;
+}
+
+ast::Expr *CodeGen::AggHashTablePartitionedScan(ast::Expr *agg_ht, ast::Expr *query_state, ast::Identifier worker_fn) {
+  ast::Expr *call = CallBuiltin(ast::Builtin::AggHashTablePartitionedScan, {agg_ht, query_state, MakeExpr(worker_fn)});
   call->SetType(ast::BuiltinType::Get(context_, ast::BuiltinType::Nil));
   return call;
 }

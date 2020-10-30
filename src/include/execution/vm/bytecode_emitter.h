@@ -345,6 +345,9 @@ class BytecodeEmitter {
   /** Emit code to move thread-local data into main agg table. */
   void EmitAggHashTableMovePartitions(LocalVar agg_ht, LocalVar tls, LocalVar aht_offset, FunctionId merge_part_fn);
 
+  /** Emit code to scan an agg table that was built in parallel. */
+  void EmitAggHashTablePartitionedScan(LocalVar agg_ht, LocalVar context, FunctionId scan_part_fn);
+
   /** Emit code to scan an agg table in parallel. */
   void EmitAggHashTableParallelPartitionedScan(LocalVar agg_ht, LocalVar context, LocalVar tls,
                                                FunctionId scan_part_fn);

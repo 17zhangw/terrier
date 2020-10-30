@@ -4,8 +4,6 @@
 #include <vector>
 
 #include "execution/compiler/operator/operator_translator.h"
-#include "execution/compiler/pipeline.h"
-#include "execution/compiler/pipeline_driver.h"
 
 namespace noisepage::catalog {
 class Schema;
@@ -26,7 +24,7 @@ class FunctionBuilder;
 /**
  * A translator for sequential table scans.
  */
-class SeqScanTranslator : public OperatorTranslator, public PipelineDriver {
+class SeqScanTranslator : public OperatorTranslator {
  public:
   /**
    * Create a translator for the given plan.

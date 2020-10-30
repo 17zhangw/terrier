@@ -1315,6 +1315,17 @@ void VM::Interpret(const uint8_t *ip, Frame *frame) {  // NOLINT
     DISPATCH_NEXT();
   }
 
+  OP(AggregationHashTablePartitionedScan) : {
+    auto *agg_hash_table = frame->LocalAt<sql::AggregationHashTable *>(READ_LOCAL_ID());
+    auto *query_state = frame->LocalAt<void *>(READ_LOCAL_ID());
+    auto scan_partition_fn_id = READ_FUNC_ID();
+
+    auto scan_partition_fn =
+        reinterpret_cast<sql::AggregationHashTable::ScanPartitionFn>(module_->GetRawFunctionImpl(scan_partition_fn_id));
+    OpAggregationHashTablePartitionedScan(agg_hash_table, query_state, scan_partition_fn);
+    DISPATCH_NEXT();
+  }
+
   OP(AggregationHashTableParallelPartitionedScan) : {
     auto *agg_hash_table = frame->LocalAt<sql::AggregationHashTable *>(READ_LOCAL_ID());
     auto *query_state = frame->LocalAt<void *>(READ_LOCAL_ID());

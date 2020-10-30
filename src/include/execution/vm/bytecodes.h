@@ -352,6 +352,7 @@ namespace noisepage::execution::vm {
   F(AggregationHashTableRepartition, OperandType::Local)                                                              \
   F(AggregationHashTableMergePartitions, OperandType::Local, OperandType::Local, OperandType::Local,                  \
     OperandType::FunctionId)                                                                                          \
+  F(AggregationHashTablePartitionedScan, OperandType::Local, OperandType::Local, OperandType::FunctionId)             \
   F(AggregationHashTableParallelPartitionedScan, OperandType::Local, OperandType::Local, OperandType::Local,          \
     OperandType::FunctionId)                                                                                          \
   F(AggregationHashTableFree, OperandType::Local)                                                                     \

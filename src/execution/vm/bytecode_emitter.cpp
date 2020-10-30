@@ -331,6 +331,10 @@ void BytecodeEmitter::EmitAggHashTableMovePartitions(LocalVar agg_ht, LocalVar t
   EmitAll(Bytecode::AggregationHashTableTransferPartitions, agg_ht, tls, aht_offset, merge_part_fn);
 }
 
+void BytecodeEmitter::EmitAggHashTablePartitionedScan(LocalVar agg_ht, LocalVar context, FunctionId scan_part_fn) {
+  EmitAll(Bytecode::AggregationHashTablePartitionedScan, agg_ht, context, scan_part_fn);
+}
+
 void BytecodeEmitter::EmitAggHashTableParallelPartitionedScan(LocalVar agg_ht, LocalVar context, LocalVar tls,
                                                               FunctionId scan_part_fn) {
   EmitAll(Bytecode::AggregationHashTableParallelPartitionedScan, agg_ht, context, tls, scan_part_fn);

@@ -1053,10 +1053,11 @@ TEST(OperatorTests, InsertTest) {
       std::vector<common::ManagedPointer<parser::AbstractExpression>>(raw_values, std::end(raw_values))};
 
   // Check that all of our GET methods work as expected
-  Operator op1 = Insert::Make(true, database_oid, table_oid, std::vector<catalog::col_oid_t>(columns, std::end(columns)),
-                              std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>>(values),
-                              std::vector<catalog::index_oid_t>(indexes))
-                     .RegisterWithTxnContext(txn_context);
+  Operator op1 =
+      Insert::Make(true, database_oid, table_oid, std::vector<catalog::col_oid_t>(columns, std::end(columns)),
+                   std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>>(values),
+                   std::vector<catalog::index_oid_t>(indexes))
+          .RegisterWithTxnContext(txn_context);
   EXPECT_EQ(op1.GetOpType(), OpType::INSERT);
   EXPECT_EQ(op1.GetContentsAs<Insert>()->GetDatabaseOid(), database_oid);
   EXPECT_EQ(op1.GetContentsAs<Insert>()->GetTableOid(), table_oid);
@@ -1066,10 +1067,11 @@ TEST(OperatorTests, InsertTest) {
 
   // Check that if we make a new object with the same values, then it will
   // be equal to our first object and have the same hash
-  Operator op2 = Insert::Make(true, database_oid, table_oid, std::vector<catalog::col_oid_t>(columns, std::end(columns)),
-                              std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>>(values),
-                              std::vector<catalog::index_oid_t>(indexes))
-                     .RegisterWithTxnContext(txn_context);
+  Operator op2 =
+      Insert::Make(true, database_oid, table_oid, std::vector<catalog::col_oid_t>(columns, std::end(columns)),
+                   std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>>(values),
+                   std::vector<catalog::index_oid_t>(indexes))
+          .RegisterWithTxnContext(txn_context);
   EXPECT_TRUE(op1 == op2);
   EXPECT_EQ(op1.Hash(), op2.Hash());
 
@@ -1086,10 +1088,11 @@ TEST(OperatorTests, InsertTest) {
   EXPECT_FALSE(op1 == op3);
   EXPECT_NE(op1.Hash(), op3.Hash());
 
-  Operator op4 = Insert::Make(false, database_oid, table_oid, std::vector<catalog::col_oid_t>(columns, std::end(columns)),
-                              std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>>(values),
-                              std::vector<catalog::index_oid_t>(indexes))
-                     .RegisterWithTxnContext(txn_context);
+  Operator op4 =
+      Insert::Make(false, database_oid, table_oid, std::vector<catalog::col_oid_t>(columns, std::end(columns)),
+                   std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>>(values),
+                   std::vector<catalog::index_oid_t>(indexes))
+          .RegisterWithTxnContext(txn_context);
   EXPECT_FALSE(op1 == op4);
 
   for (auto entry : raw_values) delete entry;

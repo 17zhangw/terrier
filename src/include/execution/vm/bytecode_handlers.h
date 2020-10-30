@@ -860,6 +860,12 @@ VM_OP void OpAggregationHashTableMergePartitions(
     noisepage::execution::sql::AggregationHashTable *target_agg_hash_table, void *query_state,
     noisepage::execution::sql::AggregationHashTable::MergePartitionFn merge_partition_fn);
 
+VM_OP_HOT void OpAggregationHashTablePartitionedScan(
+    noisepage::execution::sql::AggregationHashTable *const agg_hash_table, void *const query_state,
+    const noisepage::execution::sql::AggregationHashTable::ScanPartitionFn scan_partition_fn) {
+  agg_hash_table->ExecutePartitionedScan(query_state, scan_partition_fn);
+}
+
 VM_OP_HOT void OpAggregationHashTableParallelPartitionedScan(
     noisepage::execution::sql::AggregationHashTable *const agg_hash_table, void *const query_state,
     noisepage::execution::sql::ThreadStateContainer *const thread_state_container,

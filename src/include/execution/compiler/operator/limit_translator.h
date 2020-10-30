@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "execution/compiler/operator/operator_translator.h"
-#include "execution/compiler/pipeline.h"
 
 namespace noisepage::planner {
 class LimitPlanNode;
