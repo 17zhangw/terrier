@@ -18,9 +18,11 @@ class OptimizerUtil;
 
 namespace noisepage::binder {
 class BinderContext;
-}
+class BindNodeVisitor;
+}  // namespace noisepage::binder
 
 namespace noisepage::parser {
+class PostgresParser;
 
 /**
  * ColumnValueExpression represents a reference to a column.
@@ -166,6 +168,8 @@ class ColumnValueExpression : public AbstractExpression {
 
  private:
   friend class binder::BinderContext;
+  friend class binder::BindNodeVisitor;
+  friend class parser::PostgresParser;
   /** @param database_oid Database OID to be assigned to this expression */
   void SetDatabaseOID(catalog::db_oid_t database_oid) { database_oid_ = database_oid; }
   /** @param table_oid Table OID to be assigned to this expression */

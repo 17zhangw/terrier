@@ -1866,7 +1866,20 @@ std::unique_ptr<InsertStatement> PostgresParser::InsertTransform(ParseResult *pa
   } else {
     // INSERT specified by a select clause
     auto select_trans = SelectTransform(parse_result, select_stmt);
-    result = std::make_unique<InsertStatement>(std::move(column_names), std::move(table_ref), std::move(select_trans));
+    std::vector<common::ManagedPointer<parser::AbstractExpression>> exprs;
+    for (auto expr : select_trans->GetSelectColumns()) {
+      auto copy = expr->Copy();
+      if (copy->GetExpressionType() == parser::ExpressionType::COLUMN_VALUE) {
+        auto *cve = reinterpret_cast<parser::ColumnValueExpression*>(copy.get());
+        cve->SetTableName("instemp");
+      }
+      exprs.push_back(common::ManagedPointer<parser::AbstractExpression>(copy));
+      parse_result->AddExpression(std::move(copy));
+    }
+
+    auto subsel_ref = TableRef::CreateTableRefBySelect("instemp", std::move(select_trans));
+    auto select = std::make_unique<parser::SelectStatement>(std::move(exprs), false, std::move(subsel_ref), nullptr, nullptr, nullptr, nullptr);
+    result = std::make_unique<InsertStatement>(std::move(column_names), std::move(table_ref), std::move(select));
   }
 
   return result;
