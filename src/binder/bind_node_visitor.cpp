@@ -309,24 +309,8 @@ void BindNodeVisitor::Visit(common::ManagedPointer<parser::InsertStatement> node
   bool is_insert_select = node->GetSelect() != nullptr;
   std::vector<std::vector<common::ManagedPointer<parser::AbstractExpression>>> ins_columns;
   if (is_insert_select) {
-    node->GetSelect()->GetSelectTable()->Accept(common::ManagedPointer(this).CastManagedPointerTo<SqlNodeVisitor>());
-    ins_columns.emplace_back(node->GetSelect()->GetSelectTable()->GetSelect()->GetSelectColumns());
-    // ins_columns.emplace_back(node->GetSelect()->GetSelectColumns());
-
-    /*
-    auto sel_copy = node->GetSelect()->Copy();
-    auto tbl_ref = parser::TableRef("fake", std::move(sel_copy));
-    tbl_ref.Accept(common::ManagedPointer(this).CastManagedPointerTo<SqlNodeVisitor>());
-    */
-
+    node->GetSelect()->Accept(common::ManagedPointer(this).CastManagedPointerTo<SqlNodeVisitor>());
     ins_columns.emplace_back(node->GetSelect()->GetSelectColumns());
-    for (auto &tuple : ins_columns) {
-      for (auto &col : tuple) {
-        if (col->GetExpressionType() == parser::ExpressionType::COLUMN_VALUE) {
-          col.CastManagedPointerTo<parser::ColumnValueExpression>()->SetTableName("instemp");
-        }
-      }
-    }
   }
 
   // Perform input validation and parsing of strings into dates.
