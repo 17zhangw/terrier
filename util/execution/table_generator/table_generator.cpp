@@ -404,6 +404,52 @@ void TableGenerator::GenerateTestTables() {
   InitTestIndexes();
 }
 
+void TableGenerator::BuildMiniRunnerTable(const std::string &table_name) {
+  std::vector<std::string> tokens;
+  {
+    std::string token;
+    std::istringstream stream(table_name);
+    while (std::getline(stream, token, '_')) {
+      tokens.push_back(token);
+    }
+  }
+
+  int64_t row_num = atoi(tokens[tokens.size() - 2].c_str() + 3);
+  int64_t cardinality = atoi(tokens[tokens.size() - 1].c_str() + 3);
+
+  std::vector<ColumnInsertMeta> col_metas;
+  for (size_t i = 0; i < tokens.size() - 2; i++) {
+    std::string &token = tokens[i];
+    auto type = type::TypeId::INVALID;
+    if (token.find("INTEGER") != std::string::npos) {
+      type = type::TypeId::INTEGER;
+    } else if (token.find("BIGINT") != std::string::npos) {
+      type = type::TypeId::BIGINT;
+    } else if (token.find("VARCHAR") != std::string::npos) {
+      type = type::TypeId::VARCHAR;
+    } else if (token.find("REAL") != std::string::npos) {
+      type = type::TypeId::REAL;
+    }
+
+    auto type_name = type::TypeUtil::TypeIdToString(type);
+    auto num_cols = atoi(token.c_str() + type_name.length());
+    for (int j = 1; j <= num_cols; j++) {
+      std::transform(type_name.begin(), type_name.end(), type_name.begin(), ::tolower);
+
+      std::stringstream col_name;
+      col_name << type_name << j;
+      if (col_metas.empty()) {
+        col_metas.emplace_back(col_name.str(), type, false, Dist::Rotate, 0, cardinality - 1);
+      } else {
+        col_metas.emplace_back(col_name.str(), type, false, 0);
+      }
+    }
+  }
+
+  TableInsertMeta meta(table_name, row_num, col_metas);
+  CreateTable(&meta);
+}
+
 void TableGenerator::GenerateMiniRunnersData(const runner::MiniRunnersSettings &settings,
                                              const runner::MiniRunnersDataConfig &config) {
   std::vector<TableInsertMeta> table_metas;
@@ -423,25 +469,6 @@ void TableGenerator::GenerateMiniRunnersData(const runner::MiniRunnersSettings &
         cardinalities.emplace_back(row_num);
 
         for (uint32_t cardinality : cardinalities) {
-          uint32_t num_cols = 0;
-          std::vector<ColumnInsertMeta> col_metas;
-          for (size_t col_idx = 0; col_idx < col_dist.size(); col_idx++) {
-            for (uint32_t j = 1; j <= col_dist[col_idx]; j++) {
-              auto type_name = type::TypeUtil::TypeIdToString(types[col_idx]);
-              std::transform(type_name.begin(), type_name.end(), type_name.begin(), ::tolower);
-
-              std::stringstream col_name;
-              col_name << type_name << j;
-              if (col_metas.empty()) {
-                col_metas.emplace_back(col_name.str(), types[col_idx], false, Dist::Rotate, 0, cardinality - 1);
-              } else {
-                col_metas.emplace_back(col_name.str(), types[col_idx], false, 0);
-              }
-            }
-
-            num_cols += col_dist[col_idx];
-          }
-
           std::vector<type::TypeId> final_types;
           std::vector<uint32_t> col_nums;
           for (size_t i = 0; i < col_dist.size(); i++) {
@@ -450,14 +477,10 @@ void TableGenerator::GenerateMiniRunnersData(const runner::MiniRunnersSettings &
           }
 
           std::string tbl_name = GenerateTableName(final_types, col_nums, row_num, cardinality);
-          table_metas.emplace_back(tbl_name, row_num, col_metas);
+          BuildMiniRunnerTable(tbl_name);
         }
       }
     }
-  }
-
-  for (auto &table_meta : table_metas) {
-    CreateTable(&table_meta);
   }
 }
 

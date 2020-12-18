@@ -694,10 +694,13 @@ set_target_properties(noisepage PROPERTIES CXX_EXTENSIONS OFF ENABLE_EXPORTS ON)
 file(GLOB_RECURSE UTIL_SRCS CONFIGURE_DEPENDS
         ${PROJECT_SOURCE_DIR}/util/*.cpp
         ${PROJECT_SOURCE_DIR}/util/include/*.h)
+file(GLOB_RECURSE UTIL_RUNNER_SRCS ${PROJECT_SOURCE_DIR}/util/runner/*.cpp)
+
 list(REMOVE_ITEM UTIL_SRCS
         ${PROJECT_SOURCE_DIR}/util/execution/tpl.cpp
         ${PROJECT_SOURCE_DIR}/util/execution/gen_opt_bc.cpp
-        ${PROJECT_SOURCE_DIR}/util/execution/bytecode_handlers_ir.cpp)
+        ${PROJECT_SOURCE_DIR}/util/execution/bytecode_handlers_ir.cpp
+        ${UTIL_RUNNER_SRCS})
 
 function(add_util_lib TYPE)
     string(TOLOWER ${TYPE} TYPE_LOWER)
@@ -773,6 +776,19 @@ add_dependencies(tpl noisepage_static)  # gen_opt_bc needs to run.
 target_compile_options(tpl PRIVATE "-Werror" "-Wall")
 target_link_libraries(tpl PUBLIC noisepage_static util_static)
 set_target_properties(tpl PROPERTIES CXX_EXTENSIONS OFF ENABLE_EXPORTS ON)
+
+#######################################################################################################################
+# HEADER mini_runners binary.
+# mini_runners          :   Standalone mini-runners binary
+#######################################################################################################################
+
+file(GLOB_RECURSE RUNNER_SOURCES "${PROJECT_SOURCE_DIR}/util/runner/*.cpp")
+
+add_executable(mini_runners ${RUNNER_SOURCES})
+add_dependencies(mini_runners noisepage_static util_static)
+target_compile_options(mini_runners PRIVATE "-Werror" "-Wall")
+target_link_libraries(mini_runners PUBLIC noisepage_static util_static)
+set_target_properties(mini_runners PROPERTIES CXX_EXTENSIONS OFF ENABLE_EXPORTS ON)
 
 #######################################################################################################################
 # HEADER Tests.
@@ -1115,6 +1131,7 @@ set_target_properties(
         noisepage_test_util_static
         noisepage_benchmark_util
         gen_opt_bc tpl noisepage
+        mini_runners
         PROPERTIES
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"

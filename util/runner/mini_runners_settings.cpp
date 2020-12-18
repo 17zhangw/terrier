@@ -16,22 +16,32 @@ struct Arg {
 
 void MiniRunnersSettings::InitializeFromArguments(int argc, char **argv) {
   Arg port_info{"--port=", false};
-  Arg filter_info{"--benchmark_filter=", false, "*"};
+
+  Arg filter_info{"--filter=", false};
   Arg skip_large_rows_runs_info{"--skip_large_rows_runs=", false};
   Arg warm_num_info{"--warm_num=", false};
   Arg index_warm_num_info{"--index_model_warm_num=", false};
   Arg rerun_info{"--rerun=", false};
   Arg updel_info{"--updel_limit=", false};
   Arg warm_limit_info{"--warm_limit=", false};
-  Arg gen_test_data{"--gen_test=", false};
   Arg create_index_small_data{"--create_index_small_limit=", false};
   Arg create_index_car_data{"--create_index_large_car_num=", false};
   Arg run_limit{"--mini_runner_rows_limit=", false};
   Arg batch_size{"--index_model_batch_size=", false};
-  Arg *args[] = {
-      &port_info,          &filter_info,   &skip_large_rows_runs_info, &warm_num_info,         &rerun_info, &updel_info,
-      &warm_limit_info,    &gen_test_data, &create_index_small_data,   &create_index_car_data, &run_limit,  &batch_size,
-      &index_warm_num_info};
+  Arg load_upfront{"--load_upfront=", false};
+  Arg *args[] = {&port_info,
+                 &filter_info,
+                 &skip_large_rows_runs_info,
+                 &warm_num_info,
+                 &rerun_info,
+                 &updel_info,
+                 &warm_limit_info,
+                 &create_index_small_data,
+                 &create_index_car_data,
+                 &run_limit,
+                 &batch_size,
+                 &index_warm_num_info,
+                 &load_upfront};
 
   for (int i = 0; i < argc; i++) {
     for (auto *arg : args) {
@@ -43,8 +53,13 @@ void MiniRunnersSettings::InitializeFromArguments(int argc, char **argv) {
     }
   }
 
-  if (gen_test_data.found_) generate_test_data_ = true;
-  if (filter_info.found_) target_runner_specified_ = true;
+  if (filter_info.found_) {
+    target_runner_specified_ = true;
+    target_filter_ = filter_info.value_;
+  } else {
+    target_filter_ = "";
+  }
+
   if (port_info.found_) port_ = port_info.int_value_;
   if (skip_large_rows_runs_info.found_) skip_large_rows_runs_ = true;
   if (warm_num_info.found_) warmup_iterations_num_ = warm_num_info.int_value_;
@@ -56,6 +71,7 @@ void MiniRunnersSettings::InitializeFromArguments(int argc, char **argv) {
   if (create_index_car_data.found_) create_index_large_cardinality_num_ = create_index_car_data.int_value_;
   if (run_limit.found_) data_rows_limit_ = run_limit.int_value_;
   if (batch_size.found_) index_model_batch_size_ = batch_size.int_value_;
+  if (load_upfront.found_) load_upfront_ = true;
 
   noisepage::LoggersUtil::Initialize();
   SETTINGS_LOG_INFO("Starting mini-runners with this parameter set:");
@@ -73,8 +89,8 @@ void MiniRunnersSettings::InitializeFromArguments(int argc, char **argv) {
                     create_index_large_cardinality_num_);
   SETTINGS_LOG_INFO("Warmup Rows Limit ({}): {}", warm_limit_info.match_, warmup_rows_limit_);
   SETTINGS_LOG_INFO("Mini Runner Rows Limit ({}): {}", run_limit.match_, data_rows_limit_);
-  SETTINGS_LOG_INFO("Filter ({}): {}", filter_info.match_, filter_info.value_);
-  SETTINGS_LOG_INFO("Generate Test Data ({}): {}", gen_test_data.match_, gen_test_data.found_);
+  SETTINGS_LOG_INFO("Load Upfront ({}): {}", load_upfront.match_, load_upfront_);
+  SETTINGS_LOG_INFO("Filter ({}): {}", filter_info.match_, target_filter_);
 }
 
 };  // namespace noisepage::runner

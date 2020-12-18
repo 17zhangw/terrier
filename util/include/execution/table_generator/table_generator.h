@@ -63,14 +63,21 @@ class TableGenerator {
    */
   static std::string GenerateTableName(std::vector<type::TypeId> types, std::vector<uint32_t> cols, size_t row,
                                        size_t car) {
+    bool has_insert = false;
     std::stringstream table_name;
     for (size_t idx = 0; idx < cols.size(); idx++) {
       if (cols[idx] != 0) {
+        if (has_insert) {
+          // Append a delimiter
+          table_name << "_";
+        }
+
         table_name << type::TypeUtil::TypeIdToString(types[idx]);
-        table_name << "Col" << cols[idx];
+        table_name << cols[idx];
+        has_insert = true;
       }
     }
-    table_name << "Row" << row << "Car" << car;
+    table_name << "_Row" << row << "_Car" << car;
     return table_name.str();
   }
 
@@ -78,6 +85,12 @@ class TableGenerator {
    * Generate test tables.
    */
   void GenerateTestTables();
+
+  /**
+   * Builds a table for the mini runner
+   * @param table_name Table name from GenerateTableName()
+   */
+  void BuildMiniRunnerTable(const std::string &table_name);
 
   /**
    * Generate the tables for the mini runner

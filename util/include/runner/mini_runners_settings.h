@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "catalog/catalog_defs.h"
 
 namespace noisepage::runner {
 
@@ -9,6 +10,11 @@ namespace noisepage::runner {
  */
 class MiniRunnersSettings {
  public:
+  /**
+   * DB_OID
+   */
+  catalog::db_oid_t db_oid_{0};
+
   /**
    * Port
    */
@@ -67,14 +73,21 @@ class MiniRunnersSettings {
   int64_t create_index_large_cardinality_num_ = 3;
 
   /**
+   * Load upfront. Loading the data upfront means the runners will
+   * be run in some serial interleaving (i.e. all scans, then all
+   * sorts) as opposed to individual iterations being interleaved.
+   */
+  bool load_upfront_ = false;
+
+  /**
    * Whether to run a targeted filter
    */
   bool target_runner_specified_ = false;
 
   /**
-   * Whether to generate test data
+   * Target filter
    */
-  bool generate_test_data_ = false;
+  const char *target_filter_ = nullptr;
 
   /**
    * Initialize all the above settings from the arguments
