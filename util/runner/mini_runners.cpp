@@ -45,12 +45,13 @@ struct ExecutorDescriptor {
 /**
  * Mini-Runner number of executors
  */
-#define NUM_EXECUTORS (1)
+#define NUM_EXECUTORS (2)
 
 /**
  * Mini-Runner executors
  */
-MiniRunnerExecutor *executors[NUM_EXECUTORS] = {new MiniRunnerArithmeticExecutor(&config, &settings, &db_main)};
+MiniRunnerExecutor *executors[NUM_EXECUTORS] = {new MiniRunnerArithmeticExecutor(&config, &settings, &db_main),
+                                                new MiniRunnerOutputExecutor(&config, &settings, &db_main)};
 
 void InitializeRunnersState() {
   // Initialize parameter map and adjust necessary parameters
@@ -209,13 +210,20 @@ void ExecuteRunners() {
 
   std::ofstream streams[NUM_EXECUTORS];
   std::unordered_map<std::string, size_t> stream_map;
+  std::unordered_map<std::string, std::string> insert_map;
   for (size_t i = 0; i < NUM_EXECUTORS; i++) {
     auto *executor = executors[i];
-    streams[i].open(executor->GetFileName(), std::ofstream::trunc);
-    stream_map[executor->GetName()] = i;
+    if (insert_map.find(executor->GetFileName()) == insert_map.end()) {
+      insert_map[executor->GetFileName()] = executor->GetName();
 
-    streams[i] << metrics::PipelineMetricRawData::FEATURE_COLUMNS[0] << ", ";
-    streams[i] << common::ResourceTracker::Metrics::COLUMNS << "\n";
+      streams[i].open(executor->GetFileName(), std::ofstream::trunc);
+      stream_map[executor->GetName()] = i;
+      streams[i] << metrics::PipelineMetricRawData::FEATURE_COLUMNS[0] << ", ";
+      streams[i] << common::ResourceTracker::Metrics::COLUMNS << "\n";
+    } else {
+      // Share the existing stream
+      stream_map[executor->GetName()] = stream_map[insert_map[executor->GetFileName()]];
+    }
   }
 
   auto vm_modes = {noisepage::execution::vm::ExecutionMode::Interpret,

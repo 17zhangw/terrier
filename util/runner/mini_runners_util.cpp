@@ -104,4 +104,51 @@ void MiniRunnersUtil::GenIdxScanParameters(type::TypeId type_param, int64_t num_
   }
 }
 
+void MiniRunnersUtil::ExecuteQuery(struct ExecuteRequest *request) {
+  auto *db_main = request->db_main_;
+  auto *exec_query = request->exec_query_;
+
+  auto catalog = db_main->GetCatalogLayer()->GetCatalog();
+  auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();
+  transaction::TransactionContext *txn = nullptr;
+  std::unique_ptr<catalog::CatalogAccessor> accessor = nullptr;
+
+  execution::exec::NoOpResultConsumer consumer;
+  execution::exec::OutputCallback callback = consumer;
+  auto num_iters = request->num_iters_;
+  for (auto i = 0; i < num_iters; i++) {
+    common::ManagedPointer<metrics::MetricsManager> metrics_manager = nullptr;
+    if (i == num_iters - 1) {
+      db_main->GetMetricsManager()->RegisterThread();
+      metrics_manager = db_main->GetMetricsManager();
+    }
+
+    txn = txn_manager->BeginTransaction();
+    accessor = catalog->GetAccessor(common::ManagedPointer(txn), request->db_oid_, DISABLED);
+
+    auto exec_ctx = std::make_unique<execution::exec::ExecutionContext>(
+        request->db_oid_, common::ManagedPointer(txn), callback, request->out_schema_, common::ManagedPointer(accessor),
+        request->exec_settings_, metrics_manager);
+
+    // Attach params to ExecutionContext
+    if (static_cast<size_t>(i) < request->params_.size()) {
+      exec_ctx->SetParams(
+          common::ManagedPointer<const std::vector<parser::ConstantValueExpression>>(&request->params_[i]));
+    }
+
+    exec_query->Run(common::ManagedPointer(exec_ctx), request->mode_);
+
+    NOISEPAGE_ASSERT(!txn->MustAbort(), "Transaction should not be force-aborted");
+    if (request->commit_)
+      txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
+    else
+      txn_manager->Abort(txn);
+
+    if (i == num_iters - 1) {
+      metrics_manager->Aggregate();
+      metrics_manager->UnregisterThread();
+    }
+  }
+}
+
 };  // namespace noisepage::runner

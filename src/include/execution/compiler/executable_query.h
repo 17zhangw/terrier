@@ -40,9 +40,7 @@ class AbstractPlanNode;
 }  // namespace planner
 
 namespace runner {
-class MiniRunners;
-class MiniRunners_SEQ0_OutputRunners_Benchmark;
-class MiniRunners_SEQ10_0_IndexInsertRunners_Benchmark;
+class MiniRunnerOutputExecutor;
 }  // namespace runner
 
 }  // namespace noisepage
@@ -195,10 +193,8 @@ class ExecutableQuery {
   static std::atomic<query_id_t> query_identifier;
   common::ManagedPointer<const std::string> query_text_;
 
-  // MiniRunners needs to set query_identifier and pipeline_operating_units_.
-  friend class noisepage::runner::MiniRunners;
-  friend class noisepage::runner::MiniRunners_SEQ0_OutputRunners_Benchmark;
-  friend class noisepage::runner::MiniRunners_SEQ10_0_IndexInsertRunners_Benchmark;
+  // MiniRunners needs to set pipeline_operating_units_.
+  friend class noisepage::runner::MiniRunnerOutputExecutor;
 };
 
 }  // namespace noisepage::execution::compiler

@@ -74,6 +74,20 @@ class MiniRunnersUtil {
 
   static void GenIdxScanParameters(type::TypeId type_param, int64_t num_rows, int64_t lookup_size, int64_t num_iters,
                                    std::vector<std::vector<parser::ConstantValueExpression>> *real_params);
+
+  struct ExecuteRequest {
+    DBMain *db_main_;
+    catalog::db_oid_t db_oid_;
+    execution::compiler::ExecutableQuery *exec_query_;
+    planner::OutputSchema *out_schema_;
+    int64_t num_iters_;
+    bool commit_;
+    execution::vm::ExecutionMode mode_;
+    execution::exec::ExecutionSettings exec_settings_;
+    std::vector<std::vector<parser::ConstantValueExpression>> params_;
+  };
+
+  static void ExecuteQuery(struct ExecuteRequest *request);
 };
 
 };  // namespace noisepage::runner
