@@ -1,7 +1,7 @@
 #include <type_traits>
 
+#include "runner/mini_runners_exec_util.h"
 #include "runner/mini_runners_executor.h"
-#include "runner/mini_runners_util.h"
 
 namespace noisepage::runner {
 
@@ -128,7 +128,7 @@ void MiniRunnerOutputExecutor::ExecuteIteration(const MiniRunnerIterationArgumen
   auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
   auto schema = std::make_unique<planner::OutputSchema>(std::move(cols));
 
-  auto exec_settings = MiniRunnersUtil::GetExecutionSettings(true);
+  auto exec_settings = MiniRunnersExecUtil::GetExecutionSettings(true);
   execution::exec::NoOpResultConsumer consumer;
   execution::exec::OutputCallback callback = consumer;
   auto exec_ctx = std::make_unique<execution::exec::ExecutionContext>(db_oid, common::ManagedPointer(txn), callback,
@@ -148,10 +148,10 @@ void MiniRunnerOutputExecutor::ExecuteIteration(const MiniRunnerIterationArgumen
   txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
 
   {
-    MiniRunnersUtil::ExecuteRequest req{
+    MiniRunnersExecUtil::ExecuteRequest req{
         *db_main_, db_oid,        &exec_query, schema.get(), settings_->warmup_iterations_num_ + 1, true,
         mode,      exec_settings, {}};
-    MiniRunnersUtil::ExecuteQuery(&req);
+    MiniRunnersExecUtil::ExecuteQuery(&req);
   }
 }
 

@@ -40,6 +40,7 @@ class AbstractPlanNode;
 }  // namespace planner
 
 namespace runner {
+class MiniRunnersExecUtil;
 class MiniRunnerOutputExecutor;
 }  // namespace runner
 
@@ -194,6 +195,7 @@ class ExecutableQuery {
   common::ManagedPointer<const std::string> query_text_;
 
   // MiniRunners needs to set pipeline_operating_units_.
+  friend class noisepage::runner::MiniRunnersExecUtil;
   friend class noisepage::runner::MiniRunnerOutputExecutor;
 };
 

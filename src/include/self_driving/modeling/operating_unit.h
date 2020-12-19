@@ -11,7 +11,7 @@
 #include "self_driving/modeling/operating_unit_defs.h"
 
 namespace noisepage::runner {
-class MiniRunners;
+class MiniRunnersExecUtil;
 }  // namespace noisepage::runner
 
 namespace noisepage::execution::compiler::test {
@@ -75,7 +75,7 @@ class OperatingUnitRecorder;
  * - Estimated cardinality
  */
 class ExecutionOperatingUnitFeature {
-  friend class noisepage::runner::MiniRunners;
+  friend class noisepage::runner::MiniRunnersExecUtil;
   friend class execution::exec::ExecutionContext;
   friend class OperatingUnitRecorder;
   friend class ExecOUFeatureVector;
@@ -364,7 +364,7 @@ class PipelineOperatingUnits {
   friend class noisepage::execution::compiler::test::CompilerTest_InsertIntoSelectWithParamTest_Test;
   friend class noisepage::execution::compiler::test::CompilerTest_SimpleInsertWithParamsTest_Test;
   friend class noisepage::execution::compiler::test::CompilerTest_StaticDistinctAggregateTest_Test;
-  friend class noisepage::runner::MiniRunners;
+  friend class noisepage::runner::MiniRunnersExecUtil;
 
   /**
    * Constructor

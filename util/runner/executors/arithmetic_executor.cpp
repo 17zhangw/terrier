@@ -1,7 +1,7 @@
 #include <type_traits>
 
+#include "runner/mini_runners_exec_util.h"
 #include "runner/mini_runners_executor.h"
-#include "runner/mini_runners_util.h"
 
 namespace noisepage::runner {
 
@@ -136,7 +136,7 @@ void MiniRunnerArithmeticExecutor::ExecuteIteration(const MiniRunnerIterationArg
   auto txn = manager->BeginTransaction();
   auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
 
-  auto exec_settings = MiniRunnersUtil::GetExecutionSettings(true);
+  auto exec_settings = MiniRunnersExecUtil::GetExecutionSettings(true);
   auto exec_ctx = std::make_unique<execution::exec::ExecutionContext>(db_oid, common::ManagedPointer(txn), nullptr,
                                                                       nullptr, common::ManagedPointer(accessor),
                                                                       exec_settings, (*db_main_)->GetMetricsManager());

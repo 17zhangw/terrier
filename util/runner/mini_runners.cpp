@@ -3,9 +3,9 @@
 #include "execution/table_generator/table_generator.h"
 #include "main/db_main.h"
 #include "runner/mini_runners_data_config.h"
+#include "runner/mini_runners_exec_util.h"
 #include "runner/mini_runners_executor.h"
 #include "runner/mini_runners_settings.h"
-#include "runner/mini_runners_util.h"
 
 namespace noisepage::runner {
 
@@ -45,13 +45,14 @@ struct ExecutorDescriptor {
 /**
  * Mini-Runner number of executors
  */
-#define NUM_EXECUTORS (2)
+#define NUM_EXECUTORS (3)
 
 /**
  * Mini-Runner executors
  */
 MiniRunnerExecutor *executors[NUM_EXECUTORS] = {new MiniRunnerArithmeticExecutor(&config, &settings, &db_main),
-                                                new MiniRunnerOutputExecutor(&config, &settings, &db_main)};
+                                                new MiniRunnerOutputExecutor(&config, &settings, &db_main),
+                                                new MiniRunnerSeqScanExecutor(&config, &settings, &db_main)};
 
 void InitializeRunnersState() {
   // Initialize parameter map and adjust necessary parameters
@@ -100,8 +101,8 @@ void InitializeRunnersState() {
                              .SetNetworkPort(noisepage::runner::settings.port_);
 
   db_main = db_main_builder.Build().release();
-  MiniRunnersUtil::DbMainSetParam<settings::Param::pipeline_metrics_enable, bool>(db_main, true);
-  MiniRunnersUtil::DbMainSetParam<settings::Param::pipeline_metrics_interval, int>(db_main, 0);
+  MiniRunnersExecUtil::DbMainSetParam<settings::Param::pipeline_metrics_enable, bool>(db_main, true);
+  MiniRunnersExecUtil::DbMainSetParam<settings::Param::pipeline_metrics_interval, int>(db_main, 0);
 
   auto block_store = db_main->GetStorageLayer()->GetBlockStore();
   auto catalog = db_main->GetCatalogLayer()->GetCatalog();
@@ -113,7 +114,7 @@ void InitializeRunnersState() {
 
   if (settings.load_upfront_) {
     auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), settings.db_oid_, DISABLED);
-    auto exec_settings = MiniRunnersUtil::GetExecutionSettings(true);
+    auto exec_settings = MiniRunnersExecUtil::GetExecutionSettings(true);
     auto exec_ctx = std::make_unique<execution::exec::ExecutionContext>(
         settings.db_oid_, common::ManagedPointer(txn), nullptr, nullptr, common::ManagedPointer(accessor),
         exec_settings, db_main->GetMetricsManager());
@@ -145,7 +146,7 @@ void CreateMiniRunnerTable(std::string table_name) {
   auto txn = txn_manager->BeginTransaction();
 
   auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), settings.db_oid_, DISABLED);
-  auto exec_settings = MiniRunnersUtil::GetExecutionSettings(true);
+  auto exec_settings = MiniRunnersExecUtil::GetExecutionSettings(true);
   auto exec_ctx = std::make_unique<execution::exec::ExecutionContext>(
       settings.db_oid_, common::ManagedPointer(txn), nullptr, nullptr, common::ManagedPointer(accessor), exec_settings,
       db_main->GetMetricsManager());

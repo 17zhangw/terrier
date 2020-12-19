@@ -14,7 +14,7 @@ namespace noisepage::runner {
 /**
  * Collection of utility functions for the runners
  */
-class MiniRunnersUtil {
+class MiniRunnersExecUtil {
  public:
   static execution::exec::ExecutionSettings GetExecutionSettings(bool pipeline_metrics_enabled) {
     execution::exec::ExecutionSettings exec_settings;
@@ -50,30 +50,25 @@ class MiniRunnersUtil {
     }
   }
 
-  static std::string ConstructTableName(type::TypeId left_type, type::TypeId right_type, int64_t num_left,
-                                        int64_t num_right, size_t row, size_t car) {
-    std::vector<type::TypeId> types = {left_type, right_type};
-    std::vector<uint32_t> col_counts = {static_cast<uint32_t>(num_left), static_cast<uint32_t>(num_right)};
-    return execution::sql::TableGenerator::GenerateTableName(types, col_counts, row, car);
-  }
+  static void HandleBuildDropIndex(DBMain *db_main, catalog::db_oid_t db_oid, bool is_build, int64_t tbl_cols,
+                                   int64_t num_rows, int64_t num_key, type::TypeId type);
+  static void DropIndexByName(DBMain *db_main, catalog::db_oid_t db_oid, const std::string &name);
 
-  /**
-   * Construct a SQL clause.
-   *
-   * If alias is non-empty, then generates [left_alias].col# (similar for right_alias).
-   * right_alias is only used if generating a predicate.
-   * joiner is the string used for joining column statements together.
-   *
-   * is_predicate describes whether it's generating a predicate or just a projection.
-   */
-  static std::string ConstructSQLClause(type::TypeId left_type, type::TypeId right_type, int64_t num_left,
-                                        int64_t num_right, const std::string &joiner, const std::string &left_alias,
-                                        bool is_predicate, const std::string &right_alias);
+  struct OptimizeRequest {
+    DBMain *db_main;
+    catalog::db_oid_t db_oid;
+    std::string query;
+    std::unique_ptr<optimizer::AbstractCostModel> cost_model;
+    std::unique_ptr<selfdriving::PipelineOperatingUnits> pipeline_units;
+    std::function<void(common::ManagedPointer<transaction::TransactionContext>, planner::AbstractPlanNode *)> checker;
+    common::ManagedPointer<std::vector<parser::ConstantValueExpression>> params = nullptr;
+    common::ManagedPointer<std::vector<type::TypeId>> param_types = nullptr;
+    execution::exec::ExecutionSettings exec_settings;
+  };
 
-  static std::string ConstructIndexScanPredicate(type::TypeId key_type, int64_t key_num, int64_t lookup_size);
-
-  static void GenIdxScanParameters(type::TypeId type_param, int64_t num_rows, int64_t lookup_size, int64_t num_iters,
-                                   std::vector<std::vector<parser::ConstantValueExpression>> *real_params);
+  using OptimizeResult =
+      std::pair<std::unique_ptr<execution::compiler::ExecutableQuery>, std::unique_ptr<planner::OutputSchema>>;
+  static OptimizeResult OptimizeSqlStatement(struct OptimizeRequest *request);
 
   struct ExecuteRequest {
     DBMain *db_main_;

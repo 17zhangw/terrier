@@ -9,7 +9,7 @@ class SettingsManager;
 }  // namespace noisepage::settings
 
 namespace noisepage::runner {
-class MiniRunnersUtil;
+class MiniRunnersExecUtil;
 }  // namespace noisepage::runner
 
 namespace noisepage::execution {
@@ -85,7 +85,7 @@ class EXPORT ExecutionSettings {
   bool is_static_partitioner_enabled_{common::Constants::IS_STATIC_PARTITIONER_ENABLED};
 
   // MiniRunners needs to set query_identifier and pipeline_operating_units_.
-  friend class noisepage::runner::MiniRunnersUtil;
+  friend class noisepage::runner::MiniRunnersExecUtil;
   friend class noisepage::tpch::Workload;
   friend class noisepage::execution::SqlBasedTest;
   friend class noisepage::optimizer::IdxJoinTest_SimpleIdxJoinTest_Test;
