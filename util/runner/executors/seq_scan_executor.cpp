@@ -11,6 +11,8 @@ namespace noisepage::runner {
 std::map<std::string, MiniRunnerArguments> MiniRunnerSeqScanExecutor::ConstructTableArgumentsMapping(
     bool rerun, execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
+
+  // Non mixed arguments
   auto row_nums = config_->GetRowNumbersWithLimit(settings_->data_rows_limit_);
   auto types = {type::TypeId::INTEGER, type::TypeId::REAL, type::TypeId::VARCHAR};
   const std::vector<uint32_t> *num_cols;
@@ -53,6 +55,24 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerSeqScanExecutor::ConstructT
         }
       }
     }
+  }
+
+  // Mixed scan requests
+  std::vector<std::vector<int64_t>> args;
+  MiniRunnersSqlUtil::GenMixedArguments(&args, *settings_, *config_, row_nums, 0);
+  MiniRunnersSqlUtil::GenMixedArguments(&args, *settings_, *config_, row_nums, 1);
+  for (const auto &arg : args) {
+    std::vector<type::TypeId> types;
+    if (arg[arg.size() - 1] == 0) {
+      // Last index indicates varchar
+      types = std::vector<type::TypeId>{type::TypeId::INTEGER, type::TypeId::REAL};
+    } else {
+      types = std::vector<type::TypeId>{type::TypeId::INTEGER, type::TypeId::VARCHAR};
+    }
+
+    std::vector<uint32_t> col_dist{static_cast<uint32_t>(arg[2]), static_cast<uint32_t>(arg[3])};
+    auto tbl = execution::sql::TableGenerator::GenerateTableName(types, col_dist, arg[4], arg[5]);
+    mapping[tbl].emplace_back(MiniRunnerIterationArgument{arg});
   }
 
   return mapping;

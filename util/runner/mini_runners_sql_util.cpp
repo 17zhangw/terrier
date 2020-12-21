@@ -105,4 +105,41 @@ void MiniRunnersSqlUtil::GenIdxScanParameters(type::TypeId type_param, int64_t n
   }
 }
 
+void MiniRunnersSqlUtil::GenMixedArguments(std::vector<std::vector<int64_t>> *args, const MiniRunnersSettings &settings,
+                                           const MiniRunnersDataConfig &config, const std::vector<uint32_t> &row_nums,
+                                           uint32_t varchar_mix) {
+  std::vector<std::pair<uint32_t, uint32_t>> mixed_dist;
+  uint32_t step_size;
+  if (varchar_mix == 0) {
+    /* Vector of table distributions <INTEGER, DECIMALS> */
+    mixed_dist = config.sweep_scan_mixed_dist_;
+    step_size = 2;
+  } else {
+    /* Vector of table distributions <INTEGER, VARCHAR> */
+    mixed_dist = config.sweep_scan_mixed_varchar_dist_;
+    step_size = 1;
+  } /* Always generate full table scans for all row_num and cardinalities. */
+  for (auto col_dist : mixed_dist) {
+    std::pair<uint32_t, uint32_t> start = {col_dist.first - step_size, step_size};
+    while (true) {
+      for (auto row : row_nums) {
+        int64_t car = 1;
+        while (car < row) {
+          args->push_back({start.first, start.second, col_dist.first, col_dist.second, row, car, varchar_mix});
+          car *= 2;
+        }
+        args->push_back({start.first, start.second, col_dist.first, col_dist.second, row, row, varchar_mix});
+      }
+      if (start.second < col_dist.second) {
+        start.second += step_size;
+      } else if (start.first < col_dist.first) {
+        start.first += step_size;
+        start.second = step_size;
+      } else {
+        break;
+      }
+    }
+  }
+}
+
 };  // namespace noisepage::runner

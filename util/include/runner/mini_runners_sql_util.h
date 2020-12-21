@@ -40,6 +40,10 @@ class MiniRunnersSqlUtil {
 
   static void GenIdxScanParameters(type::TypeId type_param, int64_t num_rows, int64_t lookup_size, int64_t num_iters,
                                    std::vector<std::vector<parser::ConstantValueExpression>> *real_params);
+
+  static void GenMixedArguments(std::vector<std::vector<int64_t>> *args, const MiniRunnersSettings &settings,
+                                const MiniRunnersDataConfig &config, const std::vector<uint32_t> &row_nums,
+                                uint32_t varchar_mix);
 };
 
 };  // namespace noisepage::runner
