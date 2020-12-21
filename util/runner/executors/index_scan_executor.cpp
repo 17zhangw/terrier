@@ -70,7 +70,6 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerIndexScanExecutor::Construc
 
 void MiniRunnerIndexScanExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                                    execution::vm::ExecutionMode mode) {
-
   auto type = static_cast<type::TypeId>(iteration.state[0]);
   auto tbl_cols = iteration.state[1];
   size_t key_num = iteration.state[2];
@@ -83,7 +82,8 @@ void MiniRunnerIndexScanExecutor::ExecuteIteration(const MiniRunnerIterationArgu
       throw "Invalid is_build argument for IndexScan";
     }
 
-    MiniRunnersExecUtil::HandleBuildDropIndex((*db_main_), settings_->db_oid_, is_build != 0, tbl_cols, num_rows, key_num, type);
+    MiniRunnersExecUtil::HandleBuildDropIndex((*db_main_), settings_->db_oid_, is_build != 0, tbl_cols, num_rows,
+                                              key_num, type);
     return;
   }
 
@@ -108,7 +108,8 @@ void MiniRunnerIndexScanExecutor::ExecuteIteration(const MiniRunnerIterationArgu
     std::stringstream query_ss;
     auto cols = MiniRunnersSqlUtil::ConstructSQLClause(type, type::TypeId::INVALID, num_col, 0, ", ", "", false, "");
     std::string predicate = MiniRunnersSqlUtil::ConstructIndexScanPredicate(type, num_col, lookup_size);
-    auto table_name = MiniRunnersSqlUtil::ConstructTableName(type, type::TypeId::INVALID, tbl_cols, 0, num_rows, num_rows);
+    auto table_name =
+        MiniRunnersSqlUtil::ConstructTableName(type, type::TypeId::INVALID, tbl_cols, 0, num_rows, num_rows);
     query_ss << "SELECT " << cols << " FROM  " << table_name << " WHERE " << predicate;
     query = query_ss.str();
   }
@@ -136,15 +137,9 @@ void MiniRunnerIndexScanExecutor::ExecuteIteration(const MiniRunnerIterationArgu
     optimize.params = common::ManagedPointer(&real_params[0]);
     auto equery = MiniRunnersExecUtil::OptimizeSqlStatement(&optimize);
 
-    MiniRunnersExecUtil::ExecuteRequest req{*db_main_,
-                                            settings_->db_oid_,
-                                            equery.first.get(),
-                                            equery.second.get(),
-                                            num_iters,
-                                            true,
-                                            mode,
-                                            exec_settings,
-                                            std::move(real_params)};
+    MiniRunnersExecUtil::ExecuteRequest req{
+        *db_main_, settings_->db_oid_, equery.first.get(),    equery.second.get(), num_iters, true,
+        mode,      exec_settings,      std::move(real_params)};
     MiniRunnersExecUtil::ExecuteQuery(&req);
   }
 }

@@ -45,7 +45,7 @@ struct ExecutorDescriptor {
 /**
  * Mini-Runner number of executors
  */
-#define NUM_EXECUTORS (4)
+#define NUM_EXECUTORS (5)
 
 /**
  * Mini-Runner executors
@@ -53,7 +53,8 @@ struct ExecutorDescriptor {
 MiniRunnerExecutor *executors[NUM_EXECUTORS] = {new MiniRunnerArithmeticExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerOutputExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerSeqScanExecutor(&config, &settings, &db_main),
-                                                new MiniRunnerIndexScanExecutor(&config, &settings, &db_main)};
+                                                new MiniRunnerIndexScanExecutor(&config, &settings, &db_main),
+                                                new MiniRunnerSortExecutor(&config, &settings, &db_main)};
 
 void InitializeRunnersState() {
   // Initialize parameter map and adjust necessary parameters
@@ -141,6 +142,7 @@ void ShutdownRunners() {
 }
 
 void CreateMiniRunnerTable(std::string table_name) {
+  EXECUTION_LOG_INFO("Creating table {}", table_name);
   auto catalog = db_main->GetCatalogLayer()->GetCatalog();
   auto block_store = db_main->GetStorageLayer()->GetBlockStore();
   auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();
@@ -160,6 +162,7 @@ void CreateMiniRunnerTable(std::string table_name) {
 }
 
 void DropMiniRunnerTable(std::string table_name) {
+  EXECUTION_LOG_INFO("Dropping table {}", table_name);
   auto catalog = db_main->GetCatalogLayer()->GetCatalog();
   auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();
   auto txn = txn_manager->BeginTransaction();
