@@ -118,7 +118,22 @@ class MiniRunnerSeqScanExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "Scan"; }
-  std::string GetFileName() { return "execution_SEQ1.csv"; }
+  std::string GetFileName() { return "execution_SEQ1_0.csv"; }
+};
+
+class MiniRunnerIndexScanExecutor : public MiniRunnerExecutor {
+ public:
+  explicit MiniRunnerIndexScanExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+      : MiniRunnerExecutor(config, settings, db_main) {}
+
+  bool RequiresExternalMetricsControl(void) { return false; }
+  bool RequiresGCCleanup(void) { return false; }
+  std::map<std::string, MiniRunnerArguments> ConstructTableArgumentsMapping(bool is_rerun,
+                                                                            execution::vm::ExecutionMode mode);
+  void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
+
+  std::string GetName() { return "IndexScan"; }
+  std::string GetFileName() { return "execution_SEQ1_1.csv"; }
 };
 
 };  // namespace noisepage::runner
