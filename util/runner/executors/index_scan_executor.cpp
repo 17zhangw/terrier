@@ -115,7 +115,7 @@ void MiniRunnerIndexScanExecutor::ExecuteIteration(const MiniRunnerIterationArgu
   }
 
   // Generate parameters
-  int64_t num_iters = 1 + settings_->warmup_iterations_num_;
+  int64_t num_iters = 1 + (lookup_size <= settings_->warmup_rows_limit_ ? settings_->warmup_iterations_num_ : 0);
   std::vector<std::vector<parser::ConstantValueExpression>> real_params;
   MiniRunnersSqlUtil::GenIdxScanParameters(type, num_rows, lookup_size, num_iters, &real_params);
 

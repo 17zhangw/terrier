@@ -151,7 +151,7 @@ void MiniRunnerUpdateExecutor::ExecuteIteration(const MiniRunnerIterationArgumen
                          idx_size, num_col, car, 1, 0, 0);
   units->RecordOperatingUnit(execution::pipeline_id_t(1), std::move(pipe0_vec));
 
-  int num_iters = settings_->warmup_rows_limit_ + 1;
+  int64_t num_iters = 1 + (car <= settings_->warmup_rows_limit_ ? settings_->warmup_iterations_num_ : 0);
   std::vector<std::vector<parser::ConstantValueExpression>> real_params;
   MiniRunnersSqlUtil::GenIdxScanParameters(type, row, car, num_iters, &real_params);
 

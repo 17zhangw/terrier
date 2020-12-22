@@ -116,7 +116,7 @@ void MiniRunnerDeleteExecutor::ExecuteIteration(const MiniRunnerIterationArgumen
     query_final = query.str();
   }
 
-  int num_iters = settings_->warmup_rows_limit_ + 1;
+  int num_iters = 1 + (car <= settings_->warmup_rows_limit_ ? settings_->warmup_iterations_num_ : 0);
   std::vector<std::vector<parser::ConstantValueExpression>> real_params;
   MiniRunnersSqlUtil::GenIdxScanParameters(type, row, car, num_iters, &real_params);
 

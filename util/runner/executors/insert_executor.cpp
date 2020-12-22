@@ -141,11 +141,12 @@ void MiniRunnerInsertExecutor::ExecuteIteration(const MiniRunnerIterationArgumen
     optimize.exec_settings = exec_settings;
     auto equery = MiniRunnersExecUtil::OptimizeSqlStatement(&optimize);
 
+    int64_t num_iters = 1 + (num_rows <= settings_->warmup_rows_limit_ ? settings_->warmup_iterations_num_ : 0);
     MiniRunnersExecUtil::ExecuteRequest req{*db_main_,
                                             settings_->db_oid_,
                                             equery.first.get(),
                                             equery.second.get(),
-                                            settings_->warmup_iterations_num_ + 1,
+                                            num_iters,
                                             true,
                                             mode,
                                             exec_settings,
