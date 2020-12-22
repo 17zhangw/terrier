@@ -196,4 +196,34 @@ class MiniRunnerInsertExecutor : public MiniRunnerExecutor {
   std::string GetFileName() { return "execution_SEQ5_0.csv"; }
 };
 
+class MiniRunnerUpdateExecutor : public MiniRunnerExecutor {
+ public:
+  explicit MiniRunnerUpdateExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+      : MiniRunnerExecutor(config, settings, db_main) {}
+
+  bool RequiresExternalMetricsControl(void) { return false; }
+  bool RequiresGCCleanup(void) { return false; }
+  std::map<std::string, MiniRunnerArguments> ConstructTableArgumentsMapping(bool is_rerun,
+                                                                            execution::vm::ExecutionMode mode);
+  void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
+
+  std::string GetName() { return "Update"; }
+  std::string GetFileName() { return "execution_SEQ6.csv"; }
+};
+
+class MiniRunnerDeleteExecutor : public MiniRunnerExecutor {
+ public:
+  explicit MiniRunnerDeleteExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+      : MiniRunnerExecutor(config, settings, db_main) {}
+
+  bool RequiresExternalMetricsControl(void) { return false; }
+  bool RequiresGCCleanup(void) { return false; }
+  std::map<std::string, MiniRunnerArguments> ConstructTableArgumentsMapping(bool is_rerun,
+                                                                            execution::vm::ExecutionMode mode);
+  void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
+
+  std::string GetName() { return "Delete"; }
+  std::string GetFileName() { return "execution_SEQ7_1.csv"; }
+};
+
 };  // namespace noisepage::runner

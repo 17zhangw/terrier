@@ -122,7 +122,9 @@ void MiniRunnerIndexScanExecutor::ExecuteIteration(const MiniRunnerIterationArgu
   {
     std::vector<type::TypeId> param_types;
     param_types.push_back(type);
-    param_types.push_back(type);
+    if (lookup_size > 1) {
+      param_types.push_back(type);
+    }
 
     auto exec_settings = MiniRunnersExecUtil::GetExecutionSettings(true);
     MiniRunnersExecUtil::OptimizeRequest optimize;

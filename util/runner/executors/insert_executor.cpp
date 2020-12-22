@@ -1,11 +1,11 @@
 #include <type_traits>
 
-#include "storage/sql_table.h"
 #include "optimizer/cost_model/trivial_cost_model.h"
 #include "runner/mini_runners_exec_util.h"
 #include "runner/mini_runners_executor.h"
 #include "runner/mini_runners_sql_util.h"
 #include "self_driving/modeling/operating_unit_recorder.h"
+#include "storage/sql_table.h"
 
 namespace noisepage::runner {
 

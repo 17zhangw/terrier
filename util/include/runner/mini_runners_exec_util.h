@@ -16,6 +16,11 @@ namespace noisepage::runner {
  */
 class MiniRunnersExecUtil {
  public:
+  static void ChildIndexScanChecker(common::ManagedPointer<transaction::TransactionContext> txn,
+                                    planner::AbstractPlanNode *plan) {
+    if (plan->GetChild(0)->GetPlanNodeType() != planner::PlanNodeType::INDEXSCAN) throw "Expected IndexScan";
+  }
+
   static execution::exec::ExecutionSettings GetExecutionSettings(bool pipeline_metrics_enabled) {
     execution::exec::ExecutionSettings exec_settings;
     exec_settings.is_parallel_execution_enabled_ = false;

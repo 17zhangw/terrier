@@ -45,7 +45,7 @@ struct ExecutorDescriptor {
 /**
  * Mini-Runner number of executors
  */
-#define NUM_EXECUTORS (8)
+#define NUM_EXECUTORS (10)
 
 /**
  * Mini-Runner executors
@@ -57,7 +57,9 @@ MiniRunnerExecutor *executors[NUM_EXECUTORS] = {new MiniRunnerArithmeticExecutor
                                                 new MiniRunnerSortExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerAggKeyExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerAggKeylessExecutor(&config, &settings, &db_main),
-                                                new MiniRunnerInsertExecutor(&config, &settings, &db_main)};
+                                                new MiniRunnerInsertExecutor(&config, &settings, &db_main),
+                                                new MiniRunnerUpdateExecutor(&config, &settings, &db_main),
+                                                new MiniRunnerDeleteExecutor(&config, &settings, &db_main)};
 
 void InitializeRunnersState() {
   // Initialize parameter map and adjust necessary parameters
