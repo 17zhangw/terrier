@@ -45,7 +45,7 @@ struct ExecutorDescriptor {
 /**
  * Mini-Runner number of executors
  */
-#define NUM_EXECUTORS (7)
+#define NUM_EXECUTORS (8)
 
 /**
  * Mini-Runner executors
@@ -56,7 +56,8 @@ MiniRunnerExecutor *executors[NUM_EXECUTORS] = {new MiniRunnerArithmeticExecutor
                                                 new MiniRunnerIndexScanExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerSortExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerAggKeyExecutor(&config, &settings, &db_main),
-                                                new MiniRunnerAggKeylessExecutor(&config, &settings, &db_main)};
+                                                new MiniRunnerAggKeylessExecutor(&config, &settings, &db_main),
+                                                new MiniRunnerInsertExecutor(&config, &settings, &db_main)};
 
 void InitializeRunnersState() {
   // Initialize parameter map and adjust necessary parameters
@@ -186,6 +187,9 @@ void ExecuteDescriptor(std::ofstream &target, const ExecutorDescriptor &descript
   // Run the iterations
   for (auto &arg : descriptor.arguments_) {
     executor->ExecuteIteration(arg, descriptor.mode_);
+    if (executor->RequiresGCCleanup()) {
+      InvokeGC();
+    }
   }
 
   if (executor->RequiresExternalMetricsControl()) {
@@ -199,10 +203,6 @@ void ExecuteDescriptor(std::ofstream &target, const ExecutorDescriptor &descript
   uint16_t pipeline_idx = static_cast<uint16_t>(metrics::MetricsComponent::EXECUTION_PIPELINE);
   db_main->GetMetricsManager()->AggregatedMetrics()[pipeline_idx]->ToCSV(&files);
   target.swap(files[0]);
-
-  if (executor->RequiresGCCleanup()) {
-    InvokeGC();
-  }
 }
 
 void ExecuteRunners() {

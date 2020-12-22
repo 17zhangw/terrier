@@ -181,4 +181,19 @@ class MiniRunnerAggKeylessExecutor : public MiniRunnerExecutor {
   std::string GetFileName() { return "execution_SEQ4.csv"; }
 };
 
+class MiniRunnerInsertExecutor : public MiniRunnerExecutor {
+ public:
+  explicit MiniRunnerInsertExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+      : MiniRunnerExecutor(config, settings, db_main) {}
+
+  bool RequiresExternalMetricsControl(void) { return false; }
+  bool RequiresGCCleanup(void) { return true; }
+  std::map<std::string, MiniRunnerArguments> ConstructTableArgumentsMapping(bool is_rerun,
+                                                                            execution::vm::ExecutionMode mode);
+  void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
+
+  std::string GetName() { return "Insert"; }
+  std::string GetFileName() { return "execution_SEQ5_0.csv"; }
+};
+
 };  // namespace noisepage::runner
