@@ -20,11 +20,9 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerDeleteExecutor::ConstructTa
         if (row_num > settings_->updel_limit_) continue;
 
         auto tbl = execution::sql::TableGenerator::GenerateTableName({type}, {15}, row_num, row_num);
-        std::vector<int64_t> template_args{(type == type::TypeId::INTEGER) ? idx_key_size : 0,
-                                           (type == type::TypeId::BIGINT) ? idx_key_size : 0,
-                                           (type == type::TypeId::INTEGER) ? 15 : 0,
-                                           (type == type::TypeId::BIGINT) ? 15 : 0,
-                                           row_num};
+        std::vector<int64_t> template_args{
+            (type == type::TypeId::INTEGER) ? idx_key_size : 0, (type == type::TypeId::BIGINT) ? idx_key_size : 0,
+            (type == type::TypeId::INTEGER) ? 15 : 0, (type == type::TypeId::BIGINT) ? 15 : 0, row_num};
 
         int64_t lookup_size = 1;
         std::vector<int64_t> lookups;

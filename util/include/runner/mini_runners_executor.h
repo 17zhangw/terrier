@@ -226,4 +226,43 @@ class MiniRunnerDeleteExecutor : public MiniRunnerExecutor {
   std::string GetFileName() { return "execution_SEQ7_1.csv"; }
 };
 
+class MiniRunnerIndexOperationExecutor : public MiniRunnerExecutor {
+ public:
+  explicit MiniRunnerIndexOperationExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings,
+                                            DBMain **db_main)
+      : MiniRunnerExecutor(config, settings, db_main) {}
+
+  std::map<std::string, MiniRunnerArguments> ConstructTableArgumentsMapping(bool is_rerun,
+                                                                            execution::vm::ExecutionMode mode);
+
+  void ExecuteIndexOperation(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode,
+                             bool is_insert);
+};
+
+class MiniRunnerIndexInsertExecutor : public MiniRunnerIndexOperationExecutor {
+ public:
+  explicit MiniRunnerIndexInsertExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+      : MiniRunnerIndexOperationExecutor(config, settings, db_main) {}
+
+  bool RequiresExternalMetricsControl(void) { return false; }
+  bool RequiresGCCleanup(void) { return true; }
+  void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
+
+  std::string GetName() { return "IndexInsert"; }
+  std::string GetFileName() { return "execution_SEQ5_1.csv"; }
+};
+
+class MiniRunnerIndexDeleteExecutor : public MiniRunnerIndexOperationExecutor {
+ public:
+  explicit MiniRunnerIndexDeleteExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+      : MiniRunnerIndexOperationExecutor(config, settings, db_main) {}
+
+  bool RequiresExternalMetricsControl(void) { return false; }
+  bool RequiresGCCleanup(void) { return true; }
+  void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
+
+  std::string GetName() { return "IndexDelete"; }
+  std::string GetFileName() { return "execution_SEQ7_0.csv"; }
+};
+
 };  // namespace noisepage::runner
