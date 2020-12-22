@@ -226,6 +226,21 @@ class MiniRunnerDeleteExecutor : public MiniRunnerExecutor {
   std::string GetFileName() { return "execution_SEQ7_1.csv"; }
 };
 
+class MiniRunnerCreateIndexExecutor : public MiniRunnerExecutor {
+ public:
+  explicit MiniRunnerCreateIndexExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+      : MiniRunnerExecutor(config, settings, db_main) {}
+
+  bool RequiresExternalMetricsControl(void) { return false; }
+  bool RequiresGCCleanup(void) { return true; }
+  std::map<std::string, MiniRunnerArguments> ConstructTableArgumentsMapping(bool is_rerun,
+                                                                            execution::vm::ExecutionMode mode);
+  void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
+
+  std::string GetName() { return "CreateIndex"; }
+  std::string GetFileName() { return "execution_SEQ8.csv"; }
+};
+
 class MiniRunnerIndexOperationExecutor : public MiniRunnerExecutor {
  public:
   explicit MiniRunnerIndexOperationExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings,
