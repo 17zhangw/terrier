@@ -151,4 +151,34 @@ class MiniRunnerSortExecutor : public MiniRunnerExecutor {
   std::string GetFileName() { return "execution_SEQ2.csv"; }
 };
 
+class MiniRunnerAggKeyExecutor : public MiniRunnerExecutor {
+ public:
+  explicit MiniRunnerAggKeyExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+      : MiniRunnerExecutor(config, settings, db_main) {}
+
+  bool RequiresExternalMetricsControl(void) { return false; }
+  bool RequiresGCCleanup(void) { return false; }
+  std::map<std::string, MiniRunnerArguments> ConstructTableArgumentsMapping(bool is_rerun,
+                                                                            execution::vm::ExecutionMode mode);
+  void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
+
+  std::string GetName() { return "AggKey"; }
+  std::string GetFileName() { return "execution_SEQ4.csv"; }
+};
+
+class MiniRunnerAggKeylessExecutor : public MiniRunnerExecutor {
+ public:
+  explicit MiniRunnerAggKeylessExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+      : MiniRunnerExecutor(config, settings, db_main) {}
+
+  bool RequiresExternalMetricsControl(void) { return false; }
+  bool RequiresGCCleanup(void) { return false; }
+  std::map<std::string, MiniRunnerArguments> ConstructTableArgumentsMapping(bool is_rerun,
+                                                                            execution::vm::ExecutionMode mode);
+  void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
+
+  std::string GetName() { return "AggKeyless"; }
+  std::string GetFileName() { return "execution_SEQ4.csv"; }
+};
+
 };  // namespace noisepage::runner
