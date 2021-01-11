@@ -7,8 +7,8 @@
 
 #include "main/db_main.h"
 #include "runner/mini_runners_data_config.h"
-#include "runner/mini_runners_settings.h"
 #include "runner/mini_runners_scheduler.h"
+#include "runner/mini_runners_settings.h"
 
 namespace noisepage::runner {
 
@@ -258,9 +258,8 @@ class MiniRunnerIndexJoinExecutor : public MiniRunnerExecutor {
   void RegisterIterations(MiniRunnerScheduler *scheduler, bool is_rerun, execution::vm::ExecutionMode mode);
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
-  void IndexNLJoinChecker(catalog::db_oid_t db_oid,
-      std::string build_tbl, size_t num_cols, common::ManagedPointer<transaction::TransactionContext> txn,
-      planner::AbstractPlanNode *plan);
+  void IndexNLJoinChecker(catalog::db_oid_t db_oid, std::string build_tbl, size_t num_cols,
+                          common::ManagedPointer<transaction::TransactionContext> txn, planner::AbstractPlanNode *plan);
 
   std::string GetName() { return "IndexJoin"; }
   std::string GetFileName() { return "execution_SEQ1_1.csv"; }
@@ -268,7 +267,8 @@ class MiniRunnerIndexJoinExecutor : public MiniRunnerExecutor {
 
 class MiniRunnerHashJoinNonSelfExecutor : public MiniRunnerExecutor {
  public:
-  explicit MiniRunnerHashJoinNonSelfExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+  explicit MiniRunnerHashJoinNonSelfExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings,
+                                             DBMain **db_main)
       : MiniRunnerExecutor(config, settings, db_main) {}
 
   bool RequiresExternalMetricsControl(void) { return false; }
@@ -276,10 +276,8 @@ class MiniRunnerHashJoinNonSelfExecutor : public MiniRunnerExecutor {
   void RegisterIterations(MiniRunnerScheduler *scheduler, bool is_rerun, execution::vm::ExecutionMode mode);
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
-  void JoinNonSelfChecker(
-      catalog::db_oid_t db_oid,
-      std::string build_tbl, common::ManagedPointer<transaction::TransactionContext> txn,
-      planner::AbstractPlanNode *plan);
+  void JoinNonSelfChecker(catalog::db_oid_t db_oid, std::string build_tbl,
+                          common::ManagedPointer<transaction::TransactionContext> txn, planner::AbstractPlanNode *plan);
 
   std::string GetName() { return "HashJoinNonSelf"; }
   std::string GetFileName() { return "execution_SEQ3.csv"; }
@@ -287,7 +285,8 @@ class MiniRunnerHashJoinNonSelfExecutor : public MiniRunnerExecutor {
 
 class MiniRunnerHashJoinSelfExecutor : public MiniRunnerExecutor {
  public:
-  explicit MiniRunnerHashJoinSelfExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+  explicit MiniRunnerHashJoinSelfExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings,
+                                          DBMain **db_main)
       : MiniRunnerExecutor(config, settings, db_main) {}
 
   bool RequiresExternalMetricsControl(void) { return false; }
@@ -301,7 +300,8 @@ class MiniRunnerHashJoinSelfExecutor : public MiniRunnerExecutor {
 
 class MiniRunnerNetworkOutputExecutor : public MiniRunnerExecutor {
  public:
-  explicit MiniRunnerNetworkOutputExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings, DBMain **db_main)
+  explicit MiniRunnerNetworkOutputExecutor(MiniRunnersDataConfig *config, MiniRunnersSettings *settings,
+                                           DBMain **db_main)
       : MiniRunnerExecutor(config, settings, db_main) {}
 
   bool RequiresExternalMetricsControl(void) { return false; }

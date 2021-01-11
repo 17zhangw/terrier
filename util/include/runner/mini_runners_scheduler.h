@@ -1,7 +1,7 @@
 #pragma once
 
-#include <set>
 #include <map>
+#include <set>
 #include <vector>
 
 #include "execution/vm/vm_defs.h"
@@ -25,12 +25,9 @@ using MiniRunnerArguments = std::vector<MiniRunnerIterationArgument>;
  */
 class MiniRunnerExecutorDescriptor {
  public:
-  explicit MiniRunnerExecutorDescriptor(MiniRunnerExecutor *executor,
-      execution::vm::ExecutionMode mode,
-      MiniRunnerArguments arguments)
-    : executor_(executor),
-      mode_(mode),
-      arguments_(arguments) {}
+  explicit MiniRunnerExecutorDescriptor(MiniRunnerExecutor *executor, execution::vm::ExecutionMode mode,
+                                        MiniRunnerArguments arguments)
+      : executor_(executor), mode_(mode), arguments_(arguments) {}
 
   MiniRunnerExecutor *GetExecutor() const { return executor_; }
   execution::vm::ExecutionMode GetMode() { return mode_; }
@@ -49,17 +46,14 @@ class MiniRunnerExecutorDescriptor {
  */
 class MiniRunnerScheduleKey {
  public:
-  MiniRunnerScheduleKey(std::set<std::string> tables)
-    : tables_(tables) {}
+  MiniRunnerScheduleKey(std::set<std::string> tables) : tables_(tables) {}
 
   bool operator<(const MiniRunnerScheduleKey &s) const {
     // Lexicographically compare
     return tables_ < s.tables_;
   }
 
-  bool operator==(const MiniRunnerScheduleKey &s) const {
-    return tables_ == s.tables_;
-  }
+  bool operator==(const MiniRunnerScheduleKey &s) const { return tables_ == s.tables_; }
 
  private:
   /** Tables required */
@@ -73,13 +67,10 @@ class MiniRunnerScheduleKey {
 class MiniRunnerSchedule {
  public:
   explicit MiniRunnerSchedule() {}
-    
-  explicit MiniRunnerSchedule(std::set<std::string> tables)
-    : tables_(tables) {}
 
-  void AddDescriptor(MiniRunnerExecutorDescriptor &&descriptor) {
-    descriptors_.emplace_back(descriptor);
-  }
+  explicit MiniRunnerSchedule(std::set<std::string> tables) : tables_(tables) {}
+
+  void AddDescriptor(MiniRunnerExecutorDescriptor &&descriptor) { descriptors_.emplace_back(descriptor); }
 
   size_t NumIterations() {
     size_t num_iterations = 0;
@@ -112,14 +103,10 @@ class MiniRunnerScheduler {
    * @param mode Execution mode
    * @param arguments Executor's iteration arguments
    */
-  void CreateSchedule(std::set<std::string> tables,
-      MiniRunnerExecutor *executor,
-      execution::vm::ExecutionMode mode,
-      MiniRunnerArguments arguments);
+  void CreateSchedule(std::set<std::string> tables, MiniRunnerExecutor *executor, execution::vm::ExecutionMode mode,
+                      MiniRunnerArguments arguments);
 
-  size_t NumSchedules() {
-    return schedules_.size();
-  }
+  size_t NumSchedules() { return schedules_.size(); }
 
   size_t NumIterations() {
     size_t num_iterations = 0;
@@ -130,9 +117,7 @@ class MiniRunnerScheduler {
   }
 
   /** Wipe schedules */
-  void ClearSchedules() {
-    schedules_.clear();
-  }
+  void ClearSchedules() { schedules_.clear(); }
 
   /** Rewind the iterator to first schedule */
   void Rewind();

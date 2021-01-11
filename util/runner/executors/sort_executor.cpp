@@ -9,7 +9,8 @@
 
 namespace noisepage::runner {
 
-void MiniRunnerSortExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerSortExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
 
   auto is_topks = {0, 1};
@@ -114,15 +115,8 @@ void MiniRunnerSortExecutor::ExecuteIteration(const MiniRunnerIterationArgument 
     auto equery = MiniRunnersExecUtil::OptimizeSqlStatement(&optimize);
 
     int iters = 1 + (row <= settings_->warmup_rows_limit_ ? settings_->warmup_iterations_num_ : 0);
-    MiniRunnersExecUtil::ExecuteRequest req{*db_main_,
-                                            settings_->db_oid_,
-                                            equery.first.get(),
-                                            equery.second.get(),
-                                            iters,
-                                            true,
-                                            mode,
-                                            exec_settings,
-                                            {}};
+    MiniRunnersExecUtil::ExecuteRequest req{
+        *db_main_, settings_->db_oid_, equery.first.get(), equery.second.get(), iters, true, mode, exec_settings, {}};
     MiniRunnersExecUtil::ExecuteQuery(&req);
   }
 }

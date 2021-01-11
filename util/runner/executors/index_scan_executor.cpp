@@ -17,7 +17,8 @@ void IndexScanChecker(size_t num_keys, common::ManagedPointer<transaction::Trans
   if (idx_scan->GetLoIndexColumns().size() != num_keys) throw "Number keys mismatch";
 }
 
-void MiniRunnerIndexScanExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerIndexScanExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                     execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
 
   auto types = {type::TypeId::INTEGER, type::TypeId::BIGINT, type::TypeId::VARCHAR};
@@ -62,7 +63,7 @@ void MiniRunnerIndexScanExecutor::RegisterIterations(MiniRunnerScheduler *schedu
     }
   }
 
-  for (auto & map : mapping) {
+  for (auto &map : mapping) {
     scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
   }
 }

@@ -5,8 +5,8 @@
 #include "runner/mini_runners_data_config.h"
 #include "runner/mini_runners_exec_util.h"
 #include "runner/mini_runners_executor.h"
-#include "runner/mini_runners_settings.h"
 #include "runner/mini_runners_scheduler.h"
+#include "runner/mini_runners_settings.h"
 
 namespace noisepage::runner {
 
@@ -241,7 +241,7 @@ void ExecuteRunners() {
     // Generate arguments
     if (i == 0 || i == 1) {
       auto vm_modes = {noisepage::execution::vm::ExecutionMode::Interpret,
-        noisepage::execution::vm::ExecutionMode::Compiled};
+                       noisepage::execution::vm::ExecutionMode::Compiled};
       for (auto mode : vm_modes) {
         for (auto executor : executors) {
           executor->RegisterIterations(&scheduler, i != 0, mode);

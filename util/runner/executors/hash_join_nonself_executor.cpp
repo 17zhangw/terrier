@@ -1,7 +1,7 @@
 #include <type_traits>
 
-#include "planner/plannodes/seq_scan_plan_node.h"
 #include "optimizer/cost_model/forced_cost_model.h"
+#include "planner/plannodes/seq_scan_plan_node.h"
 #include "runner/mini_runners_exec_util.h"
 #include "runner/mini_runners_executor.h"
 #include "runner/mini_runners_sql_util.h"
@@ -9,24 +9,24 @@
 
 namespace noisepage::runner {
 
-  void MiniRunnerHashJoinNonSelfExecutor::JoinNonSelfChecker(
-      catalog::db_oid_t db_oid,
-      std::string build_tbl, common::ManagedPointer<transaction::TransactionContext> txn,
-      planner::AbstractPlanNode *plan) {
-    auto catalog = (*db_main_)->GetCatalogLayer()->GetCatalog();
-    auto accessor = catalog->GetAccessor(txn, db_oid, DISABLED);
-    auto build_oid = accessor->GetTableOid(std::move(build_tbl));
+void MiniRunnerHashJoinNonSelfExecutor::JoinNonSelfChecker(catalog::db_oid_t db_oid, std::string build_tbl,
+                                                           common::ManagedPointer<transaction::TransactionContext> txn,
+                                                           planner::AbstractPlanNode *plan) {
+  auto catalog = (*db_main_)->GetCatalogLayer()->GetCatalog();
+  auto accessor = catalog->GetAccessor(txn, db_oid, DISABLED);
+  auto build_oid = accessor->GetTableOid(std::move(build_tbl));
 
-    if (plan->GetPlanNodeType() != planner::PlanNodeType::HASHJOIN) throw "Expected HashJoin";
-    if (plan->GetChild(0)->GetPlanNodeType() != planner::PlanNodeType::SEQSCAN) throw "Expected Left SeqScan";
-    if (plan->GetChild(1)->GetPlanNodeType() != planner::PlanNodeType::SEQSCAN) throw "Expected Right SeqScan";
+  if (plan->GetPlanNodeType() != planner::PlanNodeType::HASHJOIN) throw "Expected HashJoin";
+  if (plan->GetChild(0)->GetPlanNodeType() != planner::PlanNodeType::SEQSCAN) throw "Expected Left SeqScan";
+  if (plan->GetChild(1)->GetPlanNodeType() != planner::PlanNodeType::SEQSCAN) throw "Expected Right SeqScan";
 
-    // Assumes the build side is the left (since that is the HashJoinLeftTranslator)
-    auto *l_scan = reinterpret_cast<const planner::SeqScanPlanNode *>(plan->GetChild(0));
-    if (l_scan->GetTableOid() != build_oid) throw "Join order incorrect";
-  }
+  // Assumes the build side is the left (since that is the HashJoinLeftTranslator)
+  auto *l_scan = reinterpret_cast<const planner::SeqScanPlanNode *>(plan->GetChild(0));
+  if (l_scan->GetTableOid() != build_oid) throw "Join order incorrect";
+}
 
-void MiniRunnerHashJoinNonSelfExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerHashJoinNonSelfExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                           execution::vm::ExecutionMode mode) {
   if (rerun) {
     // Don't execute on rerun
     return;
@@ -53,16 +53,15 @@ void MiniRunnerHashJoinNonSelfExecutor::RegisterIterations(MiniRunnerScheduler *
           }
 
           auto matched_car = row_nums[i];
-          std::vector<int64_t> args{
-            (type == type::TypeId::INTEGER) ? col : 0,
-            (type == type::TypeId::BIGINT) ? col : 0,
-            int_cols,
-            bigint_cols,
-            build_rows,
-            build_car,
-            probe_rows,
-            probe_car,
-            matched_car} ;
+          std::vector<int64_t> args{(type == type::TypeId::INTEGER) ? col : 0,
+                                    (type == type::TypeId::BIGINT) ? col : 0,
+                                    int_cols,
+                                    bigint_cols,
+                                    build_rows,
+                                    build_car,
+                                    probe_rows,
+                                    probe_car,
+                                    matched_car};
 
           scheduler->CreateSchedule({build_tbl, probe_tbl}, this, mode, {std::move(args)});
         }
@@ -72,7 +71,7 @@ void MiniRunnerHashJoinNonSelfExecutor::RegisterIterations(MiniRunnerScheduler *
 }
 
 void MiniRunnerHashJoinNonSelfExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
-                                                 execution::vm::ExecutionMode mode) {
+                                                         execution::vm::ExecutionMode mode) {
   auto num_integers = iteration[0];
   auto num_bigints = iteration[1];
   auto tbl_ints = iteration[2];
@@ -104,14 +103,18 @@ void MiniRunnerHashJoinNonSelfExecutor::ExecuteIteration(const MiniRunnerIterati
   units->RecordOperatingUnit(execution::pipeline_id_t(2), std::move(pipe0_vec));
   units->RecordOperatingUnit(execution::pipeline_id_t(1), std::move(pipe1_vec));
 
-  auto build_tbl = MiniRunnersSqlUtil::ConstructTableName(type::TypeId::INTEGER, type::TypeId::BIGINT, tbl_ints, tbl_bigints, build_row, build_car);
-  auto probe_tbl = MiniRunnersSqlUtil::ConstructTableName(type::TypeId::INTEGER, type::TypeId::BIGINT, tbl_ints, tbl_bigints, probe_row, probe_car);
+  auto build_tbl = MiniRunnersSqlUtil::ConstructTableName(type::TypeId::INTEGER, type::TypeId::BIGINT, tbl_ints,
+                                                          tbl_bigints, build_row, build_car);
+  auto probe_tbl = MiniRunnersSqlUtil::ConstructTableName(type::TypeId::INTEGER, type::TypeId::BIGINT, tbl_ints,
+                                                          tbl_bigints, probe_row, probe_car);
 
   std::string query_final;
   {
     std::stringstream query;
-    auto cols = MiniRunnersSqlUtil::ConstructSQLClause(type::TypeId::INTEGER, type::TypeId::BIGINT, num_integers, num_bigints, ", ", "b", false, "");
-    auto predicate = MiniRunnersSqlUtil::ConstructSQLClause(type::TypeId::INTEGER, type::TypeId::BIGINT, num_integers, num_bigints, " AND ", build_tbl, true, "b");
+    auto cols = MiniRunnersSqlUtil::ConstructSQLClause(type::TypeId::INTEGER, type::TypeId::BIGINT, num_integers,
+                                                       num_bigints, ", ", "b", false, "");
+    auto predicate = MiniRunnersSqlUtil::ConstructSQLClause(type::TypeId::INTEGER, type::TypeId::BIGINT, num_integers,
+                                                            num_bigints, " AND ", build_tbl, true, "b");
     query << "SELECT " << cols << " FROM " << build_tbl << ", " << probe_tbl << " as b WHERE " << predicate;
     query_final = query.str();
   }
@@ -125,18 +128,12 @@ void MiniRunnerHashJoinNonSelfExecutor::ExecuteIteration(const MiniRunnerIterati
     optimize.cost_model = std::make_unique<optimizer::ForcedCostModel>(true);
     optimize.pipeline_units = std::move(units);
     optimize.exec_settings = exec_settings;
-    optimize.checker = std::bind(&MiniRunnerHashJoinNonSelfExecutor::JoinNonSelfChecker, this, settings_->db_oid_, build_tbl, std::placeholders::_1, std::placeholders::_2);
+    optimize.checker = std::bind(&MiniRunnerHashJoinNonSelfExecutor::JoinNonSelfChecker, this, settings_->db_oid_,
+                                 build_tbl, std::placeholders::_1, std::placeholders::_2);
     auto equery = MiniRunnersExecUtil::OptimizeSqlStatement(&optimize);
 
-    MiniRunnersExecUtil::ExecuteRequest req{*db_main_,
-                                            settings_->db_oid_,
-                                            equery.first.get(),
-                                            equery.second.get(),
-                                            1,
-                                            true,
-                                            mode,
-                                            exec_settings,
-                                            {}};
+    MiniRunnersExecUtil::ExecuteRequest req{
+        *db_main_, settings_->db_oid_, equery.first.get(), equery.second.get(), 1, true, mode, exec_settings, {}};
     MiniRunnersExecUtil::ExecuteQuery(&req);
   }
 }

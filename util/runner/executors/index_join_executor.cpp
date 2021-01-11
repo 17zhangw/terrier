@@ -1,8 +1,8 @@
 #include <type_traits>
 
 #include "optimizer/cost_model/trivial_cost_model.h"
-#include "planner/plannodes/index_scan_plan_node.h"
 #include "planner/plannodes/index_join_plan_node.h"
+#include "planner/plannodes/index_scan_plan_node.h"
 #include "runner/mini_runners_exec_util.h"
 #include "runner/mini_runners_executor.h"
 #include "runner/mini_runners_sql_util.h"
@@ -10,10 +10,9 @@
 
 namespace noisepage::runner {
 
-void MiniRunnerIndexJoinExecutor::IndexNLJoinChecker(
-    catalog::db_oid_t db_oid,
-      std::string build_tbl, size_t num_cols, common::ManagedPointer<transaction::TransactionContext> txn,
-      planner::AbstractPlanNode *plan) {
+void MiniRunnerIndexJoinExecutor::IndexNLJoinChecker(catalog::db_oid_t db_oid, std::string build_tbl, size_t num_cols,
+                                                     common::ManagedPointer<transaction::TransactionContext> txn,
+                                                     planner::AbstractPlanNode *plan) {
   if (plan->GetPlanNodeType() != planner::PlanNodeType::INDEXNLJOIN) throw "Expected IndexNLJoin";
   if (plan->GetChildrenSize() != 1) throw "Expected 1 child";
   if (plan->GetChild(0)->GetPlanNodeType() != planner::PlanNodeType::SEQSCAN) throw "Expected child IdxScan";
@@ -27,7 +26,8 @@ void MiniRunnerIndexJoinExecutor::IndexNLJoinChecker(
   if (nlplan->GetTableOid() != build_oid) throw "inner index does not match";
 }
 
-void MiniRunnerIndexJoinExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerIndexJoinExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                     execution::vm::ExecutionMode mode) {
   if (rerun) {
     return;
   }
@@ -71,7 +71,8 @@ void MiniRunnerIndexJoinExecutor::ExecuteIteration(const MiniRunnerIterationArgu
       throw "Invalid is_build argument for IndexJoin";
     }
 
-    MiniRunnersExecUtil::HandleBuildDropIndex(*db_main_, settings_->db_oid_, is_build != 0, tbl_cols, inner, key_num, type);
+    MiniRunnersExecUtil::HandleBuildDropIndex(*db_main_, settings_->db_oid_, is_build != 0, tbl_cols, inner, key_num,
+                                              type);
     return;
   }
 
@@ -98,10 +99,10 @@ void MiniRunnerIndexJoinExecutor::ExecuteIteration(const MiniRunnerIterationArgu
   std::string query_final;
   auto inner_tbl = MiniRunnersSqlUtil::ConstructTableName(type, type::TypeId::INVALID, tbl_cols, 0, inner, inner);
   {
-
     std::stringstream query;
     auto cols = MiniRunnersSqlUtil::ConstructSQLClause(type, type::TypeId::INVALID, key_num, 0, ", ", "a", false, "");
-    auto predicate = MiniRunnersSqlUtil::ConstructSQLClause(type, type::TypeId::INVALID, key_num, 0, " AND ", "a", true, "b");
+    auto predicate =
+        MiniRunnersSqlUtil::ConstructSQLClause(type, type::TypeId::INVALID, key_num, 0, " AND ", "a", true, "b");
     auto outer_tbl = MiniRunnersSqlUtil::ConstructTableName(type, type::TypeId::INVALID, tbl_cols, 0, outer, outer);
     query << "SELECT " << cols << " FROM " << outer_tbl << " AS a, " << inner_tbl << " AS b WHERE " << predicate;
     query_final = query.str();
@@ -116,12 +117,12 @@ void MiniRunnerIndexJoinExecutor::ExecuteIteration(const MiniRunnerIterationArgu
     optimize.cost_model = std::make_unique<optimizer::TrivialCostModel>();
     optimize.pipeline_units = std::move(units);
     optimize.exec_settings = exec_settings;
-    optimize.checker = std::bind(&MiniRunnerIndexJoinExecutor::IndexNLJoinChecker, this, settings_->db_oid_, inner_tbl, key_num, std::placeholders::_1, std::placeholders::_2);
+    optimize.checker = std::bind(&MiniRunnerIndexJoinExecutor::IndexNLJoinChecker, this, settings_->db_oid_, inner_tbl,
+                                 key_num, std::placeholders::_1, std::placeholders::_2);
     auto equery = MiniRunnersExecUtil::OptimizeSqlStatement(&optimize);
 
     MiniRunnersExecUtil::ExecuteRequest req{
-        *db_main_, settings_->db_oid_, equery.first.get(),    equery.second.get(), 1, true,
-        mode,      exec_settings};
+        *db_main_, settings_->db_oid_, equery.first.get(), equery.second.get(), 1, true, mode, exec_settings};
     MiniRunnersExecUtil::ExecuteQuery(&req);
   }
 }

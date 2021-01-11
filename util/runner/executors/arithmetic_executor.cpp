@@ -85,7 +85,8 @@ TIGHT_LOOP_OPERATION(double, MULTIPLY, *);
 TIGHT_LOOP_OPERATION(double, DIVIDE, /);
 TIGHT_LOOP_OPERATION(double, GEQ, >=);
 
-void MiniRunnerArithmeticExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerArithmeticExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                      execution::vm::ExecutionMode mode) {
   if (rerun) {
     // Don't rerun this runner for reruns
     return;

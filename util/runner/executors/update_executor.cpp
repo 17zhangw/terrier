@@ -17,7 +17,8 @@ void UpdateIndexScanChecker(common::ManagedPointer<transaction::TransactionConte
   if (plan->GetChild(0)->GetPlanNodeType() != planner::PlanNodeType::INDEXSCAN) throw "Expected IndexScan";
 }
 
-void MiniRunnerUpdateExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerUpdateExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                  execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
   auto &idx_key = config_->sweep_update_index_col_nums_;
   auto &update_keys = config_->sweep_update_col_nums_;

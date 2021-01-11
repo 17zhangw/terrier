@@ -8,7 +8,8 @@
 
 namespace noisepage::runner {
 
-void MiniRunnerHashJoinSelfExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerHashJoinSelfExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                        execution::vm::ExecutionMode mode) {
   if (rerun) {
     // Don't execute on rerun
     return;
@@ -60,7 +61,7 @@ void MiniRunnerHashJoinSelfExecutor::RegisterIterations(MiniRunnerScheduler *sch
 }
 
 void MiniRunnerHashJoinSelfExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
-                                                 execution::vm::ExecutionMode mode) {
+                                                      execution::vm::ExecutionMode mode) {
   auto num_integers = iteration[0];
   auto num_bigints = iteration[1];
   auto tbl_ints = iteration[2];
@@ -96,9 +97,12 @@ void MiniRunnerHashJoinSelfExecutor::ExecuteIteration(const MiniRunnerIterationA
   std::string query_final;
   {
     std::stringstream query;
-    auto tbl_name = MiniRunnersSqlUtil::ConstructTableName(type::TypeId::INTEGER, type::TypeId::BIGINT, tbl_ints, tbl_bigints, row, car);
-    auto cols = MiniRunnersSqlUtil::ConstructSQLClause(type::TypeId::INTEGER, type::TypeId::BIGINT, num_integers, num_bigints, ", ", "b", false, "");
-    auto predicate = MiniRunnersSqlUtil::ConstructSQLClause(type::TypeId::INTEGER, type::TypeId::BIGINT, num_integers, num_bigints, " AND ", tbl_name, true, "b");
+    auto tbl_name = MiniRunnersSqlUtil::ConstructTableName(type::TypeId::INTEGER, type::TypeId::BIGINT, tbl_ints,
+                                                           tbl_bigints, row, car);
+    auto cols = MiniRunnersSqlUtil::ConstructSQLClause(type::TypeId::INTEGER, type::TypeId::BIGINT, num_integers,
+                                                       num_bigints, ", ", "b", false, "");
+    auto predicate = MiniRunnersSqlUtil::ConstructSQLClause(type::TypeId::INTEGER, type::TypeId::BIGINT, num_integers,
+                                                            num_bigints, " AND ", tbl_name, true, "b");
     query << "SELECT " << cols << " FROM " << tbl_name << ", " << tbl_name << " as b WHERE " << predicate;
     query_final = query.str();
   }
@@ -114,15 +118,8 @@ void MiniRunnerHashJoinSelfExecutor::ExecuteIteration(const MiniRunnerIterationA
     optimize.exec_settings = exec_settings;
     auto equery = MiniRunnersExecUtil::OptimizeSqlStatement(&optimize);
 
-    MiniRunnersExecUtil::ExecuteRequest req{*db_main_,
-                                            settings_->db_oid_,
-                                            equery.first.get(),
-                                            equery.second.get(),
-                                            1,
-                                            true,
-                                            mode,
-                                            exec_settings,
-                                            {}};
+    MiniRunnersExecUtil::ExecuteRequest req{
+        *db_main_, settings_->db_oid_, equery.first.get(), equery.second.get(), 1, true, mode, exec_settings, {}};
     MiniRunnersExecUtil::ExecuteQuery(&req);
   }
 }

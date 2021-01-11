@@ -5,7 +5,8 @@
 
 namespace noisepage::runner {
 
-void MiniRunnerOutputExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerOutputExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                  execution::vm::ExecutionMode mode) {
   MiniRunnerArguments arguments;
   auto &num_cols = config_->sweep_col_nums_;
   auto row_nums = config_->GetRowNumbersWithLimit(settings_->data_rows_limit_);

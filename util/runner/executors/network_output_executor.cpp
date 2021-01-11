@@ -6,7 +6,8 @@
 
 namespace noisepage::runner {
 
-void MiniRunnerNetworkOutputExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerNetworkOutputExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                         execution::vm::ExecutionMode mode) {
   if (rerun) {
     return;
   }
@@ -19,7 +20,7 @@ void MiniRunnerNetworkOutputExecutor::RegisterIterations(MiniRunnerScheduler *sc
 }
 
 void MiniRunnerNetworkOutputExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
-                                                execution::vm::ExecutionMode mode) {
+                                                       execution::vm::ExecutionMode mode) {
   std::string conn;
   {
     std::stringstream conn_ss;

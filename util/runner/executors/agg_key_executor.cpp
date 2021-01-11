@@ -8,7 +8,8 @@
 
 namespace noisepage::runner {
 
-void MiniRunnerAggKeyExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerAggKeyExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                  execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
 
   auto row_nums = config_->GetRowNumbersWithLimit(settings_->data_rows_limit_);
@@ -116,16 +117,11 @@ void MiniRunnerAggKeyExecutor::ExecuteIteration(const MiniRunnerIterationArgumen
     optimize.exec_settings = exec_settings;
     auto equery = MiniRunnersExecUtil::OptimizeSqlStatement(&optimize);
 
-    int iters = 1 + ((row <= settings_->warmup_rows_limit_ && car <= settings_->warmup_rows_limit_) ? settings_->warmup_iterations_num_ : 0);
-    MiniRunnersExecUtil::ExecuteRequest req{*db_main_,
-                                            settings_->db_oid_,
-                                            equery.first.get(),
-                                            equery.second.get(),
-                                            iters,
-                                            true,
-                                            mode,
-                                            exec_settings,
-                                            {}};
+    int iters = 1 + ((row <= settings_->warmup_rows_limit_ && car <= settings_->warmup_rows_limit_)
+                         ? settings_->warmup_iterations_num_
+                         : 0);
+    MiniRunnersExecUtil::ExecuteRequest req{
+        *db_main_, settings_->db_oid_, equery.first.get(), equery.second.get(), iters, true, mode, exec_settings, {}};
     MiniRunnersExecUtil::ExecuteQuery(&req);
   }
 }

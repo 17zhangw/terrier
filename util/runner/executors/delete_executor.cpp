@@ -8,7 +8,8 @@
 
 namespace noisepage::runner {
 
-void MiniRunnerDeleteExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerDeleteExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                  execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
   auto &idx_key = config_->sweep_update_index_col_nums_;
   auto row_nums = config_->GetRowNumbersWithLimit(settings_->data_rows_limit_);

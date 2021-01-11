@@ -8,7 +8,8 @@
 
 namespace noisepage::runner {
 
-void MiniRunnerCreateIndexExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerCreateIndexExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
+                                                       execution::vm::ExecutionMode mode) {
   if (rerun) {
     return;
   }
