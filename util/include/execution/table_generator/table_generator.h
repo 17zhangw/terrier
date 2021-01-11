@@ -325,8 +325,9 @@ class TableGenerator {
   /**
    * Create Index
    * @param index_meta Index Metadata
+   * @returns index OID of newly created index
    */
-  void CreateIndex(IndexInsertMeta *index_meta);
+  catalog::index_oid_t CreateIndex(IndexInsertMeta *index_meta);
 
   /**
    * Fill a given table according to its metadata

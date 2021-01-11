@@ -82,7 +82,7 @@ class MiniRunnerOutputExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "Output"; }
-  std::string GetFileName() { return "execution_SEQ0.csv"; }
+  std::string GetFileName() { return "execution_SEQ1.csv"; }
 };
 
 class MiniRunnerSeqScanExecutor : public MiniRunnerExecutor {
@@ -96,7 +96,7 @@ class MiniRunnerSeqScanExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "Scan"; }
-  std::string GetFileName() { return "execution_SEQ1_0.csv"; }
+  std::string GetFileName() { return "execution_SEQ2.csv"; }
 };
 
 class MiniRunnerIndexScanExecutor : public MiniRunnerExecutor {
@@ -110,7 +110,7 @@ class MiniRunnerIndexScanExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "IndexScan"; }
-  std::string GetFileName() { return "execution_SEQ1_1.csv"; }
+  std::string GetFileName() { return "execution_SEQ3.csv"; }
 };
 
 class MiniRunnerSortExecutor : public MiniRunnerExecutor {
@@ -124,7 +124,7 @@ class MiniRunnerSortExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "Sort"; }
-  std::string GetFileName() { return "execution_SEQ2.csv"; }
+  std::string GetFileName() { return "execution_SEQ4.csv"; }
 };
 
 class MiniRunnerAggKeyExecutor : public MiniRunnerExecutor {
@@ -138,7 +138,7 @@ class MiniRunnerAggKeyExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "AggKey"; }
-  std::string GetFileName() { return "execution_SEQ4.csv"; }
+  std::string GetFileName() { return "execution_SEQ5.csv"; }
 };
 
 class MiniRunnerAggKeylessExecutor : public MiniRunnerExecutor {
@@ -152,7 +152,7 @@ class MiniRunnerAggKeylessExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "AggKeyless"; }
-  std::string GetFileName() { return "execution_SEQ4.csv"; }
+  std::string GetFileName() { return "execution_SEQ6.csv"; }
 };
 
 class MiniRunnerInsertExecutor : public MiniRunnerExecutor {
@@ -166,7 +166,7 @@ class MiniRunnerInsertExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "Insert"; }
-  std::string GetFileName() { return "execution_SEQ5_0.csv"; }
+  std::string GetFileName() { return "execution_SEQ7.csv"; }
 };
 
 class MiniRunnerUpdateExecutor : public MiniRunnerExecutor {
@@ -180,7 +180,7 @@ class MiniRunnerUpdateExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "Update"; }
-  std::string GetFileName() { return "execution_SEQ6.csv"; }
+  std::string GetFileName() { return "execution_SEQ8.csv"; }
 };
 
 class MiniRunnerDeleteExecutor : public MiniRunnerExecutor {
@@ -194,7 +194,7 @@ class MiniRunnerDeleteExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "Delete"; }
-  std::string GetFileName() { return "execution_SEQ7_1.csv"; }
+  std::string GetFileName() { return "execution_SEQ9.csv"; }
 };
 
 class MiniRunnerCreateIndexExecutor : public MiniRunnerExecutor {
@@ -208,7 +208,7 @@ class MiniRunnerCreateIndexExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "CreateIndex"; }
-  std::string GetFileName() { return "execution_SEQ8.csv"; }
+  std::string GetFileName() { return "execution_SEQ10.csv"; }
 };
 
 class MiniRunnerIndexOperationExecutor : public MiniRunnerExecutor {
@@ -232,7 +232,7 @@ class MiniRunnerIndexInsertExecutor : public MiniRunnerIndexOperationExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "IndexInsert"; }
-  std::string GetFileName() { return "execution_SEQ5_1.csv"; }
+  std::string GetFileName() { return "execution_SEQ11.csv"; }
 };
 
 class MiniRunnerIndexDeleteExecutor : public MiniRunnerIndexOperationExecutor {
@@ -245,7 +245,7 @@ class MiniRunnerIndexDeleteExecutor : public MiniRunnerIndexOperationExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "IndexDelete"; }
-  std::string GetFileName() { return "execution_SEQ7_0.csv"; }
+  std::string GetFileName() { return "execution_SEQ12.csv"; }
 };
 
 class MiniRunnerIndexJoinExecutor : public MiniRunnerExecutor {
@@ -262,7 +262,7 @@ class MiniRunnerIndexJoinExecutor : public MiniRunnerExecutor {
                           common::ManagedPointer<transaction::TransactionContext> txn, planner::AbstractPlanNode *plan);
 
   std::string GetName() { return "IndexJoin"; }
-  std::string GetFileName() { return "execution_SEQ1_1.csv"; }
+  std::string GetFileName() { return "execution_SEQ13.csv"; }
 };
 
 class MiniRunnerHashJoinNonSelfExecutor : public MiniRunnerExecutor {
@@ -280,7 +280,7 @@ class MiniRunnerHashJoinNonSelfExecutor : public MiniRunnerExecutor {
                           common::ManagedPointer<transaction::TransactionContext> txn, planner::AbstractPlanNode *plan);
 
   std::string GetName() { return "HashJoinNonSelf"; }
-  std::string GetFileName() { return "execution_SEQ3.csv"; }
+  std::string GetFileName() { return "execution_SEQ14.csv"; }
 };
 
 class MiniRunnerHashJoinSelfExecutor : public MiniRunnerExecutor {
@@ -295,7 +295,7 @@ class MiniRunnerHashJoinSelfExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "HashJoinSelf"; }
-  std::string GetFileName() { return "execution_SEQ3.csv"; }
+  std::string GetFileName() { return "execution_SEQ15.csv"; }
 };
 
 class MiniRunnerNetworkOutputExecutor : public MiniRunnerExecutor {
@@ -310,7 +310,7 @@ class MiniRunnerNetworkOutputExecutor : public MiniRunnerExecutor {
   void ExecuteIteration(const MiniRunnerIterationArgument &iteration, execution::vm::ExecutionMode mode);
 
   std::string GetName() { return "NetworkOutput"; }
-  std::string GetFileName() { return "execution_SEQ0.csv"; }
+  std::string GetFileName() { return "execution_SEQ16.csv"; }
 };
 
 };  // namespace noisepage::runner

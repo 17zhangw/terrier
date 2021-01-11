@@ -91,9 +91,6 @@ void MiniRunnerNetworkOutputExecutor::ExecuteIteration(const MiniRunnerIteration
     }
   }
   txn.commit();
-
-  (*db_main_)->GetMetricsManager()->Aggregate();
-  (*db_main_)->GetMetricsManager()->ToCSV();
 }
 
 };  // namespace noisepage::runner

@@ -37,7 +37,7 @@ void MiniRunnerSortExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, 
             bool is_int = type == type::TypeId::INTEGER;
             std::vector<type::TypeId> type_vec{type::TypeId::INTEGER, type::TypeId::REAL};
             std::vector<uint32_t> col_vec{(is_int ? 15u : 0u), (is_int ? 0u : 15u)};
-            auto tbl = execution::sql::TableGenerator::GenerateTableName(type_vec, col_vec, row, car);
+            auto tbl = execution::sql::TableGenerator::GenerateTableName(type_vec, col_vec, row, is_topk ? row : car);
 
             std::vector<int64_t> args{
                 (is_int ? col : 0), (is_int ? 0 : col), (is_int ? 15 : 0), (is_int ? 0 : 15), row, car, is_topk};

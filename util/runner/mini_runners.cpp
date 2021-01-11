@@ -275,7 +275,7 @@ void ExecuteRunners() {
         }
 
         // Resolve tables
-        existing_tables = schedule.GetTables();
+        existing_tables = schedule_tables;
       }
 
       // Execute descriptors

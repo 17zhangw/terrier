@@ -298,7 +298,7 @@ void TableGenerator::CreateTable(TableInsertMeta *metadata) {
   FillTable(table_oid, table, schema, metadata);
 }
 
-void TableGenerator::CreateIndex(IndexInsertMeta *index_meta) {
+catalog::index_oid_t TableGenerator::CreateIndex(IndexInsertMeta *index_meta) {
   storage::index::IndexBuilder index_builder;
 
   // Get Corresponding Table
@@ -329,6 +329,7 @@ void TableGenerator::CreateIndex(IndexInsertMeta *index_meta) {
   auto index = exec_ctx_->GetAccessor()->GetIndex(index_oid);
   // Fill up the index
   FillIndex(index, index_schema, *index_meta, table, table_schema);
+  return index_oid;
 }
 
 void TableGenerator::GenerateTestTables() {
@@ -507,7 +508,8 @@ void TableGenerator::BuildMiniRunnerIndex(type::TypeId type, uint32_t tbl_cols, 
   }
 
   auto index_meta = IndexInsertMeta(idx_name_str.c_str(), table_name.c_str(), idx_meta_cols);
-  CreateIndex(&index_meta);
+  auto index_oid = CreateIndex(&index_meta);
+  EXECUTION_LOG_INFO("Created index {} ({}) on table {}", idx_name_str, index_oid.UnderlyingValue(), table_name);
 }
 
 bool TableGenerator::DropMiniRunnerIndex(type::TypeId type, uint32_t tbl_cols, int64_t row_num, int64_t key_num) {
@@ -535,6 +537,7 @@ bool TableGenerator::DropMiniRunnerIndex(type::TypeId type, uint32_t tbl_cols, i
     return false;
   }
 
+  EXECUTION_LOG_INFO("Dropping index {} on table {}", matched.UnderlyingValue(), table_name);
   return accessor->DropIndex(matched);
 }
 
