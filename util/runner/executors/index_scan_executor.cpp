@@ -17,8 +17,7 @@ void IndexScanChecker(size_t num_keys, common::ManagedPointer<transaction::Trans
   if (idx_scan->GetLoIndexColumns().size() != num_keys) throw "Number keys mismatch";
 }
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerIndexScanExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerIndexScanExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
 
   auto types = {type::TypeId::INTEGER, type::TypeId::BIGINT, type::TypeId::VARCHAR};
@@ -57,25 +56,25 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerIndexScanExecutor::Construc
         args_vector.push_back({static_cast<int64_t>(type), tbl_cols, key_size, idx_size, 0, 0});
 
         if (real_iteration) {
-          for (auto &arg : args_vector) {
-            mapping[tbl].emplace_back(MiniRunnerIterationArgument{arg});
-          }
+          mapping[tbl] = std::move(args_vector);
         }
       }
     }
   }
 
-  return mapping;
+  for (auto & map : mapping) {
+    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+  }
 }
 
 void MiniRunnerIndexScanExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                                    execution::vm::ExecutionMode mode) {
-  auto type = static_cast<type::TypeId>(iteration.state[0]);
-  auto tbl_cols = iteration.state[1];
-  size_t key_num = iteration.state[2];
-  auto num_rows = iteration.state[3];
-  auto lookup_size = iteration.state[4];
-  auto is_build = iteration.state[5];
+  auto type = static_cast<type::TypeId>(iteration[0]);
+  auto tbl_cols = iteration[1];
+  size_t key_num = iteration[2];
+  auto num_rows = iteration[3];
+  auto lookup_size = iteration[4];
+  auto is_build = iteration[5];
 
   if (lookup_size == 0) {
     if (is_build < 0) {

@@ -9,10 +9,9 @@
 
 namespace noisepage::runner {
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerInsertExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerInsertExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   if (mode == execution::vm::ExecutionMode::Compiled || rerun) {
-    return {};
+    return;
   }
 
   MiniRunnerArguments arguments;
@@ -29,7 +28,7 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerInsertExecutor::ConstructTa
         int64_t int_cols = (type == type::TypeId::INTEGER) ? col : 0;
         int64_t real_cols = (type == type::TypeId::REAL) ? col : 0;
         std::vector<int64_t> args({int_cols, real_cols, col, row});
-        arguments.emplace_back(MiniRunnerIterationArgument{std::move(args)});
+        arguments.emplace_back(std::move(args));
       }
     }
   }
@@ -42,23 +41,21 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerInsertExecutor::ConstructTa
       }
 
       std::vector<int64_t> args({mixed.first, mixed.second, mixed.first + mixed.second, row});
-      arguments.emplace_back(MiniRunnerIterationArgument{std::move(args)});
+      arguments.emplace_back(std::move(args));
     }
   }
 
-  std::map<std::string, MiniRunnerArguments> mapping;
-  mapping[EmptyTableIdentifier] = std::move(arguments);
-  return mapping;
+  scheduler->CreateSchedule({}, this, mode, std::move(arguments));
 }
 
 void MiniRunnerInsertExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                                 execution::vm::ExecutionMode mode) {
   auto catalog = (*db_main_)->GetCatalogLayer()->GetCatalog();
   auto txn_manager = (*db_main_)->GetTransactionLayer()->GetTransactionManager();
-  auto num_ints = iteration.state[0];
-  auto num_reals = iteration.state[1];
-  auto num_cols = iteration.state[2];
-  auto num_rows = iteration.state[3];
+  auto num_ints = iteration[0];
+  auto num_reals = iteration[1];
+  auto num_cols = iteration[2];
+  auto num_rows = iteration[3];
 
   // Create temporary table schema
   std::vector<catalog::Schema::Column> cols;

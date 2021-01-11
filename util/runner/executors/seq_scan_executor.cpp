@@ -8,8 +8,7 @@
 
 namespace noisepage::runner {
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerSeqScanExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerSeqScanExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
 
   // Non mixed arguments
@@ -51,7 +50,7 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerSeqScanExecutor::ConstructT
                                     row,
                                     car,
                                     (varchar_cols != 0)};
-          mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(args)});
+          mapping[tbl].emplace_back(std::move(args));
         }
       }
     }
@@ -62,6 +61,11 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerSeqScanExecutor::ConstructT
   MiniRunnersSqlUtil::GenMixedArguments(&args, *settings_, *config_, row_nums, 0);
   MiniRunnersSqlUtil::GenMixedArguments(&args, *settings_, *config_, row_nums, 1);
   for (const auto &arg : args) {
+    if (arg[4] > settings_->warmup_rows_limit_ && (rerun || settings_->skip_large_rows_runs_)) {
+      // Skip if large row classification reached
+      continue;
+    }
+
     std::vector<type::TypeId> types;
     if (arg[arg.size() - 1] == 0) {
       // Last index indicates varchar
@@ -72,21 +76,23 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerSeqScanExecutor::ConstructT
 
     std::vector<uint32_t> col_dist{static_cast<uint32_t>(arg[2]), static_cast<uint32_t>(arg[3])};
     auto tbl = execution::sql::TableGenerator::GenerateTableName(types, col_dist, arg[4], arg[5]);
-    mapping[tbl].emplace_back(MiniRunnerIterationArgument{arg});
+    mapping[tbl].emplace_back(arg);
   }
 
-  return mapping;
+  for (auto &map : mapping) {
+    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+  }
 }
 
 void MiniRunnerSeqScanExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                                  execution::vm::ExecutionMode mode) {
-  auto num_integers = iteration.state[0];
-  auto num_mix = iteration.state[1];
-  auto tbl_ints = iteration.state[2];
-  auto tbl_mix = iteration.state[3];
-  auto row = iteration.state[4];
-  auto car = iteration.state[5];
-  auto varchar_mix = iteration.state[6];
+  auto num_integers = iteration[0];
+  auto num_mix = iteration[1];
+  auto tbl_ints = iteration[2];
+  auto tbl_mix = iteration[3];
+  auto row = iteration[4];
+  auto car = iteration[5];
+  auto varchar_mix = iteration[6];
 
   auto int_size = type::TypeUtil::GetTypeTrueSize(type::TypeId::INTEGER);
   type::TypeId mix_type;

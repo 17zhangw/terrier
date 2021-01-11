@@ -8,8 +8,7 @@
 
 namespace noisepage::runner {
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerAggKeylessExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerAggKeylessExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
 
   auto &num_cols = config_->sweep_col_nums_;
@@ -38,20 +37,22 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerAggKeylessExecutor::Constru
       for (auto car : cars) {
         std::vector<int64_t> args{col, 15, row, car};
         auto tbl = execution::sql::TableGenerator::GenerateTableName({type::TypeId::INTEGER}, {15}, row, car);
-        mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(args)});
+        mapping[tbl].emplace_back(std::move(args));
       }
     }
   }
 
-  return mapping;
+  for (auto &map : mapping) {
+    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+  }
 }
 
 void MiniRunnerAggKeylessExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                                     execution::vm::ExecutionMode mode) {
-  auto num_integers = iteration.state[0];
-  auto tbl_ints = iteration.state[1];
-  auto row = iteration.state[2];
-  auto car = iteration.state[3];
+  auto num_integers = iteration[0];
+  auto tbl_ints = iteration[1];
+  auto row = iteration[2];
+  auto car = iteration[3];
 
   auto int_size = type::TypeUtil::GetTypeTrueSize(type::TypeId::INTEGER);
   auto tuple_size = int_size * num_integers;
@@ -101,7 +102,7 @@ void MiniRunnerAggKeylessExecutor::ExecuteIteration(const MiniRunnerIterationArg
     optimize.exec_settings = exec_settings;
     auto equery = MiniRunnersExecUtil::OptimizeSqlStatement(&optimize);
 
-    int iters = 1 + (row <= settings_->warmup_rows_limit_ ? settings_->warmup_iterations_num_ : 0);
+    int iters = 1 + ((row <= settings_->warmup_rows_limit_ && car <= settings_->warmup_rows_limit_) ? settings_->warmup_iterations_num_ : 0);
     MiniRunnersExecUtil::ExecuteRequest req{*db_main_,
                                             settings_->db_oid_,
                                             equery.first.get(),

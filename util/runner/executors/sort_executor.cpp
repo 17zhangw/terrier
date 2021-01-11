@@ -9,8 +9,7 @@
 
 namespace noisepage::runner {
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerSortExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerSortExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
 
   auto is_topks = {0, 1};
@@ -41,25 +40,27 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerSortExecutor::ConstructTabl
 
             std::vector<int64_t> args{
                 (is_int ? col : 0), (is_int ? 0 : col), (is_int ? 15 : 0), (is_int ? 0 : 15), row, car, is_topk};
-            mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(args)});
+            mapping[tbl].emplace_back(std::move(args));
           }
         }
       }
     }
   }
 
-  return mapping;
+  for (auto &map : mapping) {
+    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+  }
 }
 
 void MiniRunnerSortExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                               execution::vm::ExecutionMode mode) {
-  auto num_integers = iteration.state[0];
-  auto num_reals = iteration.state[1];
-  auto tbl_ints = iteration.state[2];
-  auto tbl_reals = iteration.state[3];
-  auto row = iteration.state[4];
-  auto car = iteration.state[5];
-  auto is_topk = iteration.state[6];
+  auto num_integers = iteration[0];
+  auto num_reals = iteration[1];
+  auto tbl_ints = iteration[2];
+  auto tbl_reals = iteration[3];
+  auto row = iteration[4];
+  auto car = iteration[5];
+  auto is_topk = iteration[6];
 
   // OU features
   auto int_size = type::TypeUtil::GetTypeTrueSize(type::TypeId::INTEGER);

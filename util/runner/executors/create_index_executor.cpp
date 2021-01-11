@@ -8,10 +8,9 @@
 
 namespace noisepage::runner {
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerCreateIndexExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerCreateIndexExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   if (rerun) {
-    return {};
+    return;
   }
 
   std::map<std::string, MiniRunnerArguments> mapping;
@@ -63,7 +62,7 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerCreateIndexExecutor::Constr
                                     car,
                                     0,
                                     thread};
-          mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(args)});
+          mapping[tbl].emplace_back(std::move(args));
         }
       }
     }
@@ -106,23 +105,25 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerCreateIndexExecutor::Constr
       std::vector<uint32_t> col_dist{static_cast<uint32_t>(arg[2]), static_cast<uint32_t>(arg[3])};
       auto tbl = execution::sql::TableGenerator::GenerateTableName(types, col_dist, row, arg_car);
       arg.push_back(thread);
-      mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(arg)});
+      mapping[tbl].emplace_back(std::move(arg));
     }
   }
 
-  return mapping;
+  for (auto &map : mapping) {
+    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+  }
 }
 
 void MiniRunnerCreateIndexExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                                      execution::vm::ExecutionMode mode) {
-  auto num_integers = iteration.state[0];
-  auto num_mix = iteration.state[1];
-  auto tbl_ints = iteration.state[2];
-  auto tbl_mix = iteration.state[3];
-  auto row = iteration.state[4];
-  auto car = iteration.state[5];
-  auto varchar_mix = iteration.state[6];
-  auto num_threads = iteration.state[7];
+  auto num_integers = iteration[0];
+  auto num_mix = iteration[1];
+  auto tbl_ints = iteration[2];
+  auto tbl_mix = iteration[3];
+  auto row = iteration[4];
+  auto car = iteration[5];
+  auto varchar_mix = iteration[6];
+  auto num_threads = iteration[7];
 
   // Only generate counters if executing in parallel
   auto exec_settings = MiniRunnersExecUtil::GetParallelExecutionSettings(num_threads, num_threads != 0);

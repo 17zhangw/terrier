@@ -10,10 +10,9 @@
 
 namespace noisepage::runner {
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerIndexOperationExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerIndexOperationExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   if (mode == execution::vm::ExecutionMode::Compiled) {
-    return {};
+    return;
   }
 
   std::map<std::string, MiniRunnerArguments> mapping;
@@ -31,22 +30,24 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerIndexOperationExecutor::Con
 
           auto tbl = execution::sql::TableGenerator::GenerateTableName({type}, {15}, row, row);
           std::vector<int64_t> args{col, 15, row, static_cast<int64_t>(type), num_index};
-          mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(args)});
+          mapping[tbl].emplace_back(std::move(args));
         }
       }
     }
   }
 
-  return mapping;
+  for (auto &map : mapping) {
+    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+  }
 }
 
 void MiniRunnerIndexOperationExecutor::ExecuteIndexOperation(const MiniRunnerIterationArgument &iteration,
                                                              execution::vm::ExecutionMode mode, bool is_insert) {
-  auto key_num = iteration.state[0];
-  uint64_t tbl_cols = iteration.state[1];
-  auto num_rows = iteration.state[2];
-  auto type = static_cast<type::TypeId>(iteration.state[3]);
-  auto num_index = iteration.state[4];
+  auto key_num = iteration[0];
+  uint64_t tbl_cols = iteration[1];
+  auto num_rows = iteration[2];
+  auto type = static_cast<type::TypeId>(iteration[3]);
+  auto num_index = iteration[4];
   auto target = num_rows + 1;
 
   // Create the indexes for batch-insert

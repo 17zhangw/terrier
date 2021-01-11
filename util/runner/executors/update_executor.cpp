@@ -17,8 +17,7 @@ void UpdateIndexScanChecker(common::ManagedPointer<transaction::TransactionConte
   if (plan->GetChild(0)->GetPlanNodeType() != planner::PlanNodeType::INDEXSCAN) throw "Expected IndexScan";
 }
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerUpdateExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerUpdateExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
   auto &idx_key = config_->sweep_update_index_col_nums_;
   auto &update_keys = config_->sweep_update_col_nums_;
@@ -59,14 +58,14 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerUpdateExecutor::ConstructTa
             std::vector<int64_t> arg_vec{template_args};
             arg_vec.emplace_back(0);
             arg_vec.emplace_back(1);
-            mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(arg_vec)});
+            mapping[tbl].emplace_back(std::move(arg_vec));
           }
 
           for (auto lookup : lookups) {
             std::vector<int64_t> arg_vec{template_args};
             arg_vec.emplace_back(lookup);
             arg_vec.emplace_back(-1);
-            mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(arg_vec)});
+            mapping[tbl].emplace_back(std::move(arg_vec));
           }
 
           if (!lookups.empty()) {
@@ -74,26 +73,28 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerUpdateExecutor::ConstructTa
             std::vector<int64_t> arg_vec{template_args};
             arg_vec.emplace_back(0);
             arg_vec.emplace_back(0);
-            mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(arg_vec)});
+            mapping[tbl].emplace_back(std::move(arg_vec));
           }
         }
       }
     }
   }
 
-  return mapping;
+  for (auto &map : mapping) {
+    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+  }
 }
 
 void MiniRunnerUpdateExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                                 execution::vm::ExecutionMode mode) {
-  auto num_integers = iteration.state[0];
-  auto num_bigints = iteration.state[1];
-  auto update_keys = iteration.state[2];
-  auto tbl_ints = iteration.state[3];
-  auto tbl_bigints = iteration.state[4];
-  auto row = iteration.state[5];
-  auto car = iteration.state[6];
-  auto is_build = iteration.state[7];
+  auto num_integers = iteration[0];
+  auto num_bigints = iteration[1];
+  auto update_keys = iteration[2];
+  auto tbl_ints = iteration[3];
+  auto tbl_bigints = iteration[4];
+  auto row = iteration[5];
+  auto car = iteration[6];
+  auto is_build = iteration[7];
 
   bool is_first_type = tbl_ints != 0;
   auto type = is_first_type ? (type::TypeId::INTEGER) : (type::TypeId::BIGINT);

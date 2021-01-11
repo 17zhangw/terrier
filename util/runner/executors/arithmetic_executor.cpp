@@ -85,15 +85,14 @@ TIGHT_LOOP_OPERATION(double, MULTIPLY, *);
 TIGHT_LOOP_OPERATION(double, DIVIDE, /);
 TIGHT_LOOP_OPERATION(double, GEQ, >=);
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerArithmeticExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerArithmeticExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   if (rerun) {
     // Don't rerun this runner for reruns
-    return {};
+    return;
   }
 
   if (mode != execution::vm::ExecutionMode::Interpret) {
-    return {};
+    return;
   }
 
   MiniRunnerArguments arguments;
@@ -114,19 +113,17 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerArithmeticExecutor::Constru
   for (auto op : operators) {
     for (auto count : counts) {
       std::vector<int64_t> args{static_cast<int64_t>(op), static_cast<int64_t>(count)};
-      arguments.emplace_back(MiniRunnerIterationArgument{std::move(args)});
+      arguments.emplace_back(std::move(args));
     }
   }
 
-  std::map<std::string, MiniRunnerArguments> args;
-  args[EmptyTableIdentifier] = std::move(arguments);
-  return args;
+  scheduler->CreateSchedule({}, this, mode, std::move(arguments));
 }
 
 void MiniRunnerArithmeticExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                                     execution::vm::ExecutionMode mode) {
-  auto type = static_cast<selfdriving::ExecutionOperatingUnitType>(iteration.state[0]);
-  size_t num_elem = iteration.state[1];
+  auto type = static_cast<selfdriving::ExecutionOperatingUnitType>(iteration[0]);
+  size_t num_elem = iteration[1];
 
   auto manager = (*db_main_)->GetTransactionLayer()->GetTransactionManager();
   auto catalog = (*db_main_)->GetCatalogLayer()->GetCatalog();

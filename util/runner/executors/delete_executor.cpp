@@ -8,8 +8,7 @@
 
 namespace noisepage::runner {
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerDeleteExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerDeleteExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   std::map<std::string, MiniRunnerArguments> mapping;
   auto &idx_key = config_->sweep_update_index_col_nums_;
   auto row_nums = config_->GetRowNumbersWithLimit(settings_->data_rows_limit_);
@@ -43,14 +42,14 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerDeleteExecutor::ConstructTa
           std::vector<int64_t> arg_vec{template_args};
           arg_vec.emplace_back(0);
           arg_vec.emplace_back(1);
-          mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(arg_vec)});
+          mapping[tbl].emplace_back(std::move(arg_vec));
         }
 
         for (auto lookup : lookups) {
           std::vector<int64_t> arg_vec{template_args};
           arg_vec.emplace_back(lookup);
           arg_vec.emplace_back(-1);
-          mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(arg_vec)});
+          mapping[tbl].emplace_back(std::move(arg_vec));
         }
 
         if (!lookups.empty()) {
@@ -58,24 +57,26 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerDeleteExecutor::ConstructTa
           std::vector<int64_t> arg_vec{template_args};
           arg_vec.emplace_back(0);
           arg_vec.emplace_back(0);
-          mapping[tbl].emplace_back(MiniRunnerIterationArgument{std::move(arg_vec)});
+          mapping[tbl].emplace_back(std::move(arg_vec));
         }
       }
     }
   }
 
-  return mapping;
+  for (auto &map : mapping) {
+    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+  }
 }
 
 void MiniRunnerDeleteExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                                 execution::vm::ExecutionMode mode) {
-  auto num_integers = iteration.state[0];
-  auto num_bigints = iteration.state[1];
-  auto tbl_ints = iteration.state[2];
-  auto tbl_bigints = iteration.state[3];
-  auto row = iteration.state[4];
-  auto car = iteration.state[5];
-  auto is_build = iteration.state[6];
+  auto num_integers = iteration[0];
+  auto num_bigints = iteration[1];
+  auto tbl_ints = iteration[2];
+  auto tbl_bigints = iteration[3];
+  auto row = iteration[4];
+  auto car = iteration[5];
+  auto is_build = iteration[6];
 
   // A lookup size of 0 indicates a special query
   auto type = tbl_ints != 0 ? (type::TypeId::INTEGER) : (type::TypeId::BIGINT);

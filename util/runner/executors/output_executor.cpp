@@ -5,8 +5,7 @@
 
 namespace noisepage::runner {
 
-std::map<std::string, MiniRunnerArguments> MiniRunnerOutputExecutor::ConstructTableArgumentsMapping(
-    bool rerun, execution::vm::ExecutionMode mode) {
+void MiniRunnerOutputExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun, execution::vm::ExecutionMode mode) {
   MiniRunnerArguments arguments;
   auto &num_cols = config_->sweep_col_nums_;
   auto row_nums = config_->GetRowNumbersWithLimit(settings_->data_rows_limit_);
@@ -22,25 +21,22 @@ std::map<std::string, MiniRunnerArguments> MiniRunnerOutputExecutor::ConstructTa
           real_cols = col;
 
         std::vector<int64_t> args({int_cols, real_cols, row});
-        arguments.emplace_back(MiniRunnerIterationArgument{std::move(args)});
+        arguments.emplace_back(std::move(args));
       }
     }
   }
 
   // Generate special Output feature [1 0 0 1 1]
   std::vector<int64_t> args({0, 0, 1});
-  arguments.emplace_back(MiniRunnerIterationArgument{std::move(args)});
-
-  std::map<std::string, MiniRunnerArguments> mapping;
-  mapping[EmptyTableIdentifier] = std::move(arguments);
-  return mapping;
+  arguments.emplace_back(std::move(args));
+  scheduler->CreateSchedule({}, this, mode, std::move(arguments));
 }
 
 void MiniRunnerOutputExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,
                                                 execution::vm::ExecutionMode mode) {
-  auto num_integers = iteration.state[0];
-  auto num_reals = iteration.state[1];
-  auto row_num = iteration.state[2];
+  auto num_integers = iteration[0];
+  auto num_reals = iteration[1];
+  auto row_num = iteration[2];
   auto num_col = num_integers + num_reals;
 
   std::stringstream output;

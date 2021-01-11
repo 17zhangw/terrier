@@ -6,6 +6,7 @@
 #include "runner/mini_runners_exec_util.h"
 #include "runner/mini_runners_executor.h"
 #include "runner/mini_runners_settings.h"
+#include "runner/mini_runners_scheduler.h"
 
 namespace noisepage::runner {
 
@@ -32,29 +33,23 @@ void InvokeGC() {
   gc->PerformGarbageCollection();
 }
 
-struct ExecutorDescriptor {
-  explicit ExecutorDescriptor(MiniRunnerExecutor *executor, execution::vm::ExecutionMode mode,
-                              MiniRunnerArguments &&arguments)
-      : executor_(executor), mode_(mode), arguments_(arguments) {}
-
-  MiniRunnerExecutor *executor_;
-  execution::vm::ExecutionMode mode_;
-  MiniRunnerArguments arguments_;
-};
-
 /**
  * Mini-Runner number of executors
  */
-#define NUM_EXECUTORS (13)
+#define NUM_EXECUTORS (17)
 
 /**
  * Mini-Runner executors
  */
 MiniRunnerExecutor *executors[NUM_EXECUTORS] = {new MiniRunnerArithmeticExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerOutputExecutor(&config, &settings, &db_main),
+                                                new MiniRunnerNetworkOutputExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerSeqScanExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerIndexScanExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerSortExecutor(&config, &settings, &db_main),
+                                                new MiniRunnerHashJoinNonSelfExecutor(&config, &settings, &db_main),
+                                                new MiniRunnerHashJoinSelfExecutor(&config, &settings, &db_main),
+                                                new MiniRunnerIndexJoinExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerAggKeyExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerAggKeylessExecutor(&config, &settings, &db_main),
                                                 new MiniRunnerInsertExecutor(&config, &settings, &db_main),
@@ -183,15 +178,15 @@ void DropMiniRunnerTable(std::string table_name) {
   InvokeGC();
 }
 
-void ExecuteDescriptor(std::ofstream &target, const ExecutorDescriptor &descriptor) {
-  auto *executor = descriptor.executor_;
+void ExecuteDescriptor(std::ofstream &target, MiniRunnerExecutorDescriptor &descriptor) {
+  auto *executor = descriptor.GetExecutor();
   if (executor->RequiresExternalMetricsControl()) {
     db_main->GetMetricsManager()->RegisterThread();
   }
 
   // Run the iterations
-  for (auto &arg : descriptor.arguments_) {
-    executor->ExecuteIteration(arg, descriptor.mode_);
+  for (auto &arg : descriptor.GetArguments()) {
+    executor->ExecuteIteration(arg, descriptor.GetMode());
     if (executor->RequiresGCCleanup()) {
       InvokeGC();
     }
@@ -211,6 +206,7 @@ void ExecuteDescriptor(std::ofstream &target, const ExecutorDescriptor &descript
 }
 
 void ExecuteRunners() {
+  // Compute filters
   std::unordered_set<std::string> filters;
   if (settings.target_runner_specified_) {
     std::string token;
@@ -220,6 +216,7 @@ void ExecuteRunners() {
     }
   }
 
+  // Open all file streams
   std::ofstream streams[NUM_EXECUTORS];
   std::unordered_map<std::string, size_t> stream_map;
   std::unordered_map<std::string, std::string> insert_map;
@@ -238,51 +235,66 @@ void ExecuteRunners() {
     }
   }
 
-  auto vm_modes = {noisepage::execution::vm::ExecutionMode::Interpret,
-                   noisepage::execution::vm::ExecutionMode::Compiled};
-
+  MiniRunnerScheduler scheduler;
   int rerun = settings.rerun_iterations_ + 1;
   for (int i = 0; i < rerun; i++) {
-    size_t num_iterations = 0;
-    std::map<std::string, std::vector<ExecutorDescriptor>> descriptors;
-    for (auto mode : vm_modes) {
-      for (auto executor : executors) {
-        auto data = executor->ConstructTableArgumentsMapping(i != 0, mode);
-        for (auto record : data) {
-          num_iterations += record.second.size();
-          descriptors[record.first].emplace_back(executor, mode, std::move(record.second));
+    // Generate arguments
+    if (i == 0 || i == 1) {
+      auto vm_modes = {noisepage::execution::vm::ExecutionMode::Interpret,
+        noisepage::execution::vm::ExecutionMode::Compiled};
+      for (auto mode : vm_modes) {
+        for (auto executor : executors) {
+          executor->RegisterIterations(&scheduler, i != 0, mode);
         }
       }
+    } else {
+      scheduler.ClearSchedules();
     }
 
+    size_t num_iterations = scheduler.NumIterations();
     size_t num_executed = 0;
-    for (auto iterator : descriptors) {
-      std::string table_name = iterator.first;
-      bool built_table = false;
-      bool need_table = table_name != EmptyTableIdentifier;
+    scheduler.Rewind();
 
-      for (auto &descriptor : iterator.second) {
-        auto *executor = descriptor.executor_;
+    std::set<std::string> existing_tables;
+    while (scheduler.HasNextSchedule()) {
+      MiniRunnerSchedule schedule = scheduler.GetSchedule();
+      {
+        // Add needed tables
+        const auto &schedule_tables = schedule.GetTables();
+        for (auto &tbl : schedule_tables) {
+          if (existing_tables.find(tbl) == existing_tables.end()) {
+            CreateMiniRunnerTable(tbl);
+          }
+        }
+
+        // Drop unneeded tables
+        for (auto &tbl : existing_tables) {
+          if (schedule_tables.find(tbl) == schedule_tables.end()) {
+            DropMiniRunnerTable(tbl);
+          }
+        }
+
+        // Resolve tables
+        existing_tables = schedule.GetTables();
+      }
+
+      // Execute descriptors
+      for (MiniRunnerExecutorDescriptor &descriptor : schedule.GetDescriptors()) {
+        auto *executor = descriptor.GetExecutor();
         if (filters.empty() || filters.find(executor->GetName()) != filters.end()) {
           size_t index = stream_map[executor->GetName()];
-          if (need_table) {
-            // Build the table
-            CreateMiniRunnerTable(table_name);
-
-            built_table = true;
-            need_table = false;
-          }
-
           ExecuteDescriptor(streams[index], descriptor);
         }
 
-        num_executed += descriptor.arguments_.size();
+        num_executed += descriptor.GetArguments().size();
         EXECUTION_LOG_INFO("[{}/{}] Data Point [{}/{}]\r", i, rerun, num_executed, num_iterations);
       }
 
-      if (built_table) {
-        DropMiniRunnerTable(table_name);
-      }
+      scheduler.AdvanceSchedule();
+    }
+
+    for (auto &tbl : existing_tables) {
+      DropMiniRunnerTable(tbl);
     }
   }
 }
