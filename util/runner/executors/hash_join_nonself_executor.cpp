@@ -63,7 +63,7 @@ void MiniRunnerHashJoinNonSelfExecutor::RegisterIterations(MiniRunnerScheduler *
                                     probe_car,
                                     matched_car};
 
-          scheduler->CreateSchedule({build_tbl, probe_tbl}, this, mode, {std::move(args)});
+          scheduler->CreateSchedule({build_tbl, probe_tbl}, {}, this, mode, {std::move(args)});
         }
       }
     }

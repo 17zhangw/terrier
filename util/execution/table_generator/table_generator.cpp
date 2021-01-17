@@ -405,7 +405,32 @@ void TableGenerator::GenerateTestTables() {
   InitTestIndexes();
 }
 
-void TableGenerator::BuildMiniRunnerTable(const std::string &table_name) {
+void TableGenerator::DeconstructIndexName(const std::string &index_name, std::string *table_name, int64_t *key_num) {
+  std::vector<std::string> tokens;
+  {
+    std::string token;
+    std::istringstream stream(index_name);
+    while (std::getline(stream, token, '_')) {
+      tokens.push_back(token);
+    }
+  }
+
+  *key_num = atoi(tokens[tokens.size() - 1].c_str());
+
+  std::stringstream tbl_name;
+  for (size_t i = 0; i < tokens.size() - 2; i++) {
+    if (i != 0) {
+      tbl_name << "_";
+    }
+
+    tbl_name << tokens[i];
+  }
+
+  *table_name = tbl_name.str();
+}
+
+void TableGenerator::DeconstructTableName(const std::string &table_name, int64_t *row_num, int64_t *cardinality,
+                                          std::vector<std::pair<type::TypeId, int64_t>> *col_dist) {
   std::vector<std::string> tokens;
   {
     std::string token;
@@ -415,10 +440,9 @@ void TableGenerator::BuildMiniRunnerTable(const std::string &table_name) {
     }
   }
 
-  int64_t row_num = atoi(tokens[tokens.size() - 2].c_str() + 3);
-  int64_t cardinality = atoi(tokens[tokens.size() - 1].c_str() + 3);
+  *row_num = atoi(tokens[tokens.size() - 2].c_str() + 3);
+  *cardinality = atoi(tokens[tokens.size() - 1].c_str() + 3);
 
-  std::vector<ColumnInsertMeta> col_metas;
   for (size_t i = 0; i < tokens.size() - 2; i++) {
     std::string &token = tokens[i];
     auto type = type::TypeId::INVALID;
@@ -434,6 +458,20 @@ void TableGenerator::BuildMiniRunnerTable(const std::string &table_name) {
 
     auto type_name = type::TypeUtil::TypeIdToString(type);
     auto num_cols = atoi(token.c_str() + type_name.length());
+    col_dist->emplace_back(type, num_cols);
+  }
+}
+
+void TableGenerator::BuildMiniRunnerTable(const std::string &table_name) {
+  int64_t row_num, cardinality;
+  std::vector<std::pair<type::TypeId, int64_t>> col_dist;
+  DeconstructTableName(table_name, &row_num, &cardinality, &col_dist);
+
+  std::vector<ColumnInsertMeta> col_metas;
+  for (auto &pair : col_dist) {
+    auto type = pair.first;
+    auto num_cols = pair.second;
+    auto type_name = type::TypeUtil::TypeIdToString(type);
     for (int j = 1; j <= num_cols; j++) {
       std::transform(type_name.begin(), type_name.end(), type_name.begin(), ::tolower);
 
@@ -485,14 +523,21 @@ void TableGenerator::GenerateMiniRunnersData(const runner::MiniRunnersSettings &
   }
 }
 
-void TableGenerator::BuildMiniRunnerIndex(type::TypeId type, uint32_t tbl_cols, int64_t row_num, int64_t key_num) {
-  auto table_name = GenerateTableName({type}, {tbl_cols}, row_num, row_num);
-  auto type_name = type::TypeUtil::TypeIdToString(type);
+void TableGenerator::BuildMiniRunnerIndex(const std::string &index_name) {
+  std::string table_name;
+  int64_t key_num, row_num, cardinality;
+  std::vector<std::pair<type::TypeId, int64_t>> col_dist;
+  DeconstructIndexName(index_name, &table_name, &key_num);
+  DeconstructTableName(table_name, &row_num, &cardinality, &col_dist);
+  BuildMiniRunnerIndex(col_dist[0].first, col_dist[0].second, row_num, key_num);
+}
 
+void TableGenerator::BuildMiniRunnerIndex(type::TypeId type, uint32_t tbl_cols, int64_t row_num, int64_t key_num) {
   // Create Index Schema
-  std::stringstream idx_name;
-  idx_name << table_name << "_index_" << key_num;
-  auto idx_name_str = idx_name.str();
+  auto table_name = GenerateTableName({type}, {tbl_cols}, row_num, row_num);
+  auto idx_name_str = GenerateIndexName(type, tbl_cols, row_num, key_num);
+  ;
+  auto type_name = type::TypeUtil::TypeIdToString(type);
 
   std::vector<std::string> index_strs;
   std::vector<IndexColumn> idx_meta_cols;
@@ -509,35 +554,17 @@ void TableGenerator::BuildMiniRunnerIndex(type::TypeId type, uint32_t tbl_cols, 
 
   auto index_meta = IndexInsertMeta(idx_name_str.c_str(), table_name.c_str(), idx_meta_cols);
   auto index_oid = CreateIndex(&index_meta);
-  EXECUTION_LOG_INFO("Created index {} ({}) on table {}", idx_name_str, index_oid.UnderlyingValue(), table_name);
+  EXECUTION_LOG_INFO("Created index {} ({})", idx_name_str, index_oid.UnderlyingValue());
 }
 
-bool TableGenerator::DropMiniRunnerIndex(type::TypeId type, uint32_t tbl_cols, int64_t row_num, int64_t key_num) {
-  auto table_name = GenerateTableName({type}, {tbl_cols}, row_num, row_num);
+bool TableGenerator::DropMiniRunnerIndex(std::string idx_name) {
   auto accessor = exec_ctx_->GetAccessor();
-  auto table_oid = accessor->GetTableOid(table_name);
-  auto index_oids = accessor->GetIndexOids(table_oid);
-  if (index_oids.empty()) {
-    return false;
-  }
-
-  catalog::index_oid_t matched(catalog::INVALID_INDEX_OID);
-  for (auto idx_oid : index_oids) {
-    const auto &schema = accessor->GetIndexSchema(idx_oid);
-    if (schema.GetColumns().size() == static_cast<size_t>(key_num)) {
-      if (matched != catalog::INVALID_INDEX_OID) {
-        return false;
-      }
-
-      matched = idx_oid;
-    }
-  }
-
+  auto matched = accessor->GetIndexOid(idx_name);
   if (matched == catalog::INVALID_INDEX_OID) {
     return false;
   }
 
-  EXECUTION_LOG_INFO("Dropping index {} on table {}", matched.UnderlyingValue(), table_name);
+  EXECUTION_LOG_INFO("Dropping index {} on table {}", idx_name, matched.UnderlyingValue());
   return accessor->DropIndex(matched);
 }
 

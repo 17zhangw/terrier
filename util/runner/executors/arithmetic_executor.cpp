@@ -118,7 +118,7 @@ void MiniRunnerArithmeticExecutor::RegisterIterations(MiniRunnerScheduler *sched
     }
   }
 
-  scheduler->CreateSchedule({}, this, mode, std::move(arguments));
+  scheduler->CreateSchedule({}, {}, this, mode, std::move(arguments));
 }
 
 void MiniRunnerArithmeticExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,

@@ -46,7 +46,7 @@ void MiniRunnerInsertExecutor::RegisterIterations(MiniRunnerScheduler *scheduler
     }
   }
 
-  scheduler->CreateSchedule({}, this, mode, std::move(arguments));
+  scheduler->CreateSchedule({}, {}, this, mode, std::move(arguments));
 }
 
 void MiniRunnerInsertExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,

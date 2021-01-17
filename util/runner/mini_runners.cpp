@@ -1,6 +1,7 @@
 #include "common/resource_tracker.h"
 #include "execution/execution_util.h"
 #include "execution/table_generator/table_generator.h"
+#include "loggers/runner_logger.h"
 #include "main/db_main.h"
 #include "runner/mini_runners_data_config.h"
 #include "runner/mini_runners_exec_util.h"
@@ -145,7 +146,7 @@ void ShutdownRunners() {
 }
 
 void CreateMiniRunnerTable(std::string table_name) {
-  EXECUTION_LOG_INFO("Creating table {}", table_name);
+  if (settings.log_detail_) RUNNER_LOG_INFO("Creating table {}\n", table_name);
   auto catalog = db_main->GetCatalogLayer()->GetCatalog();
   auto block_store = db_main->GetStorageLayer()->GetBlockStore();
   auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();
@@ -164,8 +165,28 @@ void CreateMiniRunnerTable(std::string table_name) {
   InvokeGC();
 }
 
+void CreateMiniRunnerIndex(std::string index_name) {
+  if (settings.log_detail_) RUNNER_LOG_INFO("Creating index {}\n", index_name);
+  auto catalog = db_main->GetCatalogLayer()->GetCatalog();
+  auto block_store = db_main->GetStorageLayer()->GetBlockStore();
+  auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();
+  auto txn = txn_manager->BeginTransaction();
+
+  auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), settings.db_oid_, DISABLED);
+  auto exec_settings = MiniRunnersExecUtil::GetExecutionSettings(true);
+  auto exec_ctx = std::make_unique<execution::exec::ExecutionContext>(
+      settings.db_oid_, common::ManagedPointer(txn), nullptr, nullptr, common::ManagedPointer(accessor), exec_settings,
+      db_main->GetMetricsManager());
+
+  execution::sql::TableGenerator table_gen(exec_ctx.get(), block_store, accessor->GetDefaultNamespace());
+  table_gen.BuildMiniRunnerIndex(index_name);
+
+  txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
+  InvokeGC();
+}
+
 void DropMiniRunnerTable(std::string table_name) {
-  EXECUTION_LOG_INFO("Dropping table {}", table_name);
+  if (settings.log_detail_) RUNNER_LOG_INFO("Dropping table {}\n", table_name);
   auto catalog = db_main->GetCatalogLayer()->GetCatalog();
   auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();
   auto txn = txn_manager->BeginTransaction();
@@ -173,6 +194,26 @@ void DropMiniRunnerTable(std::string table_name) {
   auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), settings.db_oid_, DISABLED);
   auto tbl_oid = accessor->GetTableOid(table_name);
   accessor->DropTable(tbl_oid);
+
+  txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
+  InvokeGC();
+}
+
+void DropMiniRunnerIndex(std::string index_name) {
+  if (settings.log_detail_) RUNNER_LOG_INFO("Dropping index {}\n", index_name);
+  auto catalog = db_main->GetCatalogLayer()->GetCatalog();
+  auto block_store = db_main->GetStorageLayer()->GetBlockStore();
+  auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();
+  auto txn = txn_manager->BeginTransaction();
+
+  auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), settings.db_oid_, DISABLED);
+  auto exec_settings = MiniRunnersExecUtil::GetExecutionSettings(true);
+  auto exec_ctx = std::make_unique<execution::exec::ExecutionContext>(
+      settings.db_oid_, common::ManagedPointer(txn), nullptr, nullptr, common::ManagedPointer(accessor), exec_settings,
+      db_main->GetMetricsManager());
+
+  execution::sql::TableGenerator table_gen(exec_ctx.get(), block_store, accessor->GetDefaultNamespace());
+  table_gen.DropMiniRunnerIndex(index_name);
 
   txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
   InvokeGC();
@@ -256,26 +297,54 @@ void ExecuteRunners() {
     scheduler.Rewind();
 
     std::set<std::string> existing_tables;
+    std::set<std::string> existing_indexes;
+    bool log_detail = settings.log_detail_;
     while (scheduler.HasNextSchedule()) {
       MiniRunnerSchedule schedule = scheduler.GetSchedule();
       {
         // Add needed tables
         const auto &schedule_tables = schedule.GetTables();
+        const auto &schedule_indexes = schedule.GetIndexes();
         for (auto &tbl : schedule_tables) {
           if (existing_tables.find(tbl) == existing_tables.end()) {
             CreateMiniRunnerTable(tbl);
+            existing_tables.insert(tbl);
+          }
+        }
+
+        for (auto &idx : schedule_indexes) {
+          if (existing_indexes.find(idx) == existing_indexes.end()) {
+            CreateMiniRunnerIndex(idx);
           }
         }
 
         // Drop unneeded tables
+        std::set<std::string> del_set;
         for (auto &tbl : existing_tables) {
           if (schedule_tables.find(tbl) == schedule_tables.end()) {
-            DropMiniRunnerTable(tbl);
+            MiniRunnerScheduleKey orig(schedule_tables, {});
+            MiniRunnerScheduleKey current({tbl}, {});
+            if (current < orig) {
+              // Only drop if confident we aren't using it anymore
+              // i.e., if key precedes
+              DropMiniRunnerTable(tbl);
+              del_set.insert(tbl);
+            }
+          }
+        }
+
+        for (auto &idx : existing_indexes) {
+          if (schedule_indexes.find(idx) == schedule_indexes.end()) {
+            DropMiniRunnerIndex(idx);
           }
         }
 
         // Resolve tables
-        existing_tables = schedule_tables;
+        for (auto &tbl : del_set) {
+          existing_tables.erase(tbl);
+        }
+
+        existing_indexes = schedule_indexes;
       }
 
       // Execute descriptors
@@ -283,11 +352,20 @@ void ExecuteRunners() {
         auto *executor = descriptor.GetExecutor();
         if (filters.empty() || filters.find(executor->GetName()) != filters.end()) {
           size_t index = stream_map[executor->GetName()];
+          if (log_detail)
+            RUNNER_LOG_INFO("[{}/{}] Data Point [{}/{}] {}\n", i, rerun, num_executed, num_iterations,
+                            executor->GetName());
+          else
+            RUNNER_LOG_INFO("[{}/{}] Data Point [{}/{}] {}\r", i, rerun, num_executed, num_iterations,
+                            executor->GetName());
           ExecuteDescriptor(streams[index], descriptor);
         }
 
         num_executed += descriptor.GetArguments().size();
-        EXECUTION_LOG_INFO("[{}/{}] Data Point [{}/{}]\r", i, rerun, num_executed, num_iterations);
+        if (log_detail)
+          RUNNER_LOG_INFO("[{}/{}] Data Point [{}/{}]\n", i, rerun, num_executed, num_iterations);
+        else
+          RUNNER_LOG_INFO("[{}/{}] Data Point [{}/{}]\r", i, rerun, num_executed, num_iterations);
       }
 
       scheduler.AdvanceSchedule();
@@ -305,6 +383,7 @@ int main(int argc, char **argv) {
   // Initialize mini-runner arguments
   noisepage::runner::settings.InitializeFromArguments(argc, argv);
   noisepage::runner::InitializeRunnersState();
+  noisepage::runner::InitRunnerLogger();
 
   noisepage::runner::ExecuteRunners();
 

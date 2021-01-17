@@ -19,7 +19,7 @@ void UpdateIndexScanChecker(common::ManagedPointer<transaction::TransactionConte
 
 void MiniRunnerUpdateExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
                                                   execution::vm::ExecutionMode mode) {
-  std::map<std::string, MiniRunnerArguments> mapping;
+  std::map<std::string, std::map<std::string, MiniRunnerArguments>> mapping;
   auto &idx_key = config_->sweep_update_index_col_nums_;
   auto &update_keys = config_->sweep_update_col_nums_;
   auto row_nums = config_->GetRowNumbersWithLimit(settings_->data_rows_limit_);
@@ -33,6 +33,7 @@ void MiniRunnerUpdateExecutor::RegisterIterations(MiniRunnerScheduler *scheduler
           if (row_num > settings_->updel_limit_) continue;
 
           auto tbl = execution::sql::TableGenerator::GenerateTableName({type}, {15}, row_num, row_num);
+          auto index = execution::sql::TableGenerator::GenerateIndexName(type, 15, row_num, idx_key_size);
           std::vector<int64_t> template_args{(type == type::TypeId::INTEGER) ? idx_key_size : 0,
                                              (type == type::TypeId::BIGINT) ? idx_key_size : 0,
                                              update_key,
@@ -51,30 +52,10 @@ void MiniRunnerUpdateExecutor::RegisterIterations(MiniRunnerScheduler *scheduler
             lookup_size *= 2;
           }
 
-          if (!lookups.empty()) {
-            // Special argument used to indicate a build index
-            // We need to do this to prevent update/delete from unintentionally
-            // updating multiple indexes. This way, there will only be 1 index
-            // on the table at a given time.
-            std::vector<int64_t> arg_vec{template_args};
-            arg_vec.emplace_back(0);
-            arg_vec.emplace_back(1);
-            mapping[tbl].emplace_back(std::move(arg_vec));
-          }
-
           for (auto lookup : lookups) {
             std::vector<int64_t> arg_vec{template_args};
             arg_vec.emplace_back(lookup);
-            arg_vec.emplace_back(-1);
-            mapping[tbl].emplace_back(std::move(arg_vec));
-          }
-
-          if (!lookups.empty()) {
-            // Special argument used to indicate a drop index
-            std::vector<int64_t> arg_vec{template_args};
-            arg_vec.emplace_back(0);
-            arg_vec.emplace_back(0);
-            mapping[tbl].emplace_back(std::move(arg_vec));
+            mapping[tbl][index].emplace_back(std::move(arg_vec));
           }
         }
       }
@@ -82,7 +63,9 @@ void MiniRunnerUpdateExecutor::RegisterIterations(MiniRunnerScheduler *scheduler
   }
 
   for (auto &map : mapping) {
-    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+    for (auto &second : map.second) {
+      scheduler->CreateSchedule({map.first}, {second.first}, this, mode, std::move(second.second));
+    }
   }
 }
 
@@ -95,7 +78,6 @@ void MiniRunnerUpdateExecutor::ExecuteIteration(const MiniRunnerIterationArgumen
   auto tbl_bigints = iteration[4];
   auto row = iteration[5];
   auto car = iteration[6];
-  auto is_build = iteration[7];
 
   bool is_first_type = tbl_ints != 0;
   auto type = is_first_type ? (type::TypeId::INTEGER) : (type::TypeId::BIGINT);
@@ -104,17 +86,6 @@ void MiniRunnerUpdateExecutor::ExecuteIteration(const MiniRunnerIterationArgumen
   auto tuple_size = is_first_type ? (int_size * update_keys) : (bigint_size * update_keys);
   auto num_col = is_first_type ? num_integers : num_bigints;
   auto idx_size = is_first_type ? (int_size * num_col) : (bigint_size * num_col);
-
-  if (car == 0) {
-    // A lookup size of 0 indicates a special query
-    if (is_build < 0) {
-      throw "Invalid is_build argument for ExecuteUpdate";
-    }
-
-    MiniRunnersExecUtil::HandleBuildDropIndex(*db_main_, settings_->db_oid_, is_build != 0, tbl_ints + tbl_bigints, row,
-                                              num_col, type);
-    return;
-  }
 
   // UPDATE [] SET [non-indexed columns] = [non-indexed clumns] WHERE [indexed cols]
   //

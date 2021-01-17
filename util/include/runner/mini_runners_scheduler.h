@@ -33,6 +33,10 @@ class MiniRunnerExecutorDescriptor {
   execution::vm::ExecutionMode GetMode() { return mode_; }
   MiniRunnerArguments &GetArguments() { return arguments_; }
 
+  void AddArguments(MiniRunnerArguments &&args) { arguments_.insert(arguments_.end(), args.begin(), args.end()); }
+
+  friend std::ostream &operator<<(std::ostream &out, const MiniRunnerExecutorDescriptor &s);
+
  private:
   MiniRunnerExecutor *executor_;
   execution::vm::ExecutionMode mode_;
@@ -46,18 +50,23 @@ class MiniRunnerExecutorDescriptor {
  */
 class MiniRunnerScheduleKey {
  public:
-  MiniRunnerScheduleKey(std::set<std::string> tables) : tables_(tables) {}
+  MiniRunnerScheduleKey(std::set<std::string> tables, std::set<std::string> indexes)
+      : tables_(tables), indexes_(indexes) {}
 
   bool operator<(const MiniRunnerScheduleKey &s) const {
     // Lexicographically compare
-    return tables_ < s.tables_;
+    if (tables_ != s.tables_) return tables_ < s.tables_;
+    return indexes_ < s.indexes_;
   }
 
-  bool operator==(const MiniRunnerScheduleKey &s) const { return tables_ == s.tables_; }
+  bool operator==(const MiniRunnerScheduleKey &s) const { return tables_ == s.tables_ && indexes_ == s.indexes_; }
 
  private:
   /** Tables required */
   std::set<std::string> tables_;
+
+  /** Indexes required */
+  std::set<std::string> indexes_;
 };
 
 /**
@@ -68,9 +77,19 @@ class MiniRunnerSchedule {
  public:
   explicit MiniRunnerSchedule() {}
 
-  explicit MiniRunnerSchedule(std::set<std::string> tables) : tables_(tables) {}
+  explicit MiniRunnerSchedule(std::set<std::string> tables, std::set<std::string> indexes)
+      : tables_(tables), indexes_(indexes) {}
 
-  void AddDescriptor(MiniRunnerExecutorDescriptor &&descriptor) { descriptors_.emplace_back(descriptor); }
+  void AddDescriptor(MiniRunnerExecutorDescriptor &&descriptor) {
+    for (auto &desc : descriptors_) {
+      if (desc.GetExecutor() == descriptor.GetExecutor() && desc.GetMode() == descriptor.GetMode()) {
+        desc.AddArguments(std::move(descriptor.GetArguments()));
+        return;
+      }
+    }
+
+    descriptors_.emplace_back(descriptor);
+  }
 
   size_t NumIterations() {
     size_t num_iterations = 0;
@@ -81,11 +100,15 @@ class MiniRunnerSchedule {
   }
 
   const std::set<std::string> &GetTables() { return tables_; }
+  const std::set<std::string> &GetIndexes() { return indexes_; }
   std::vector<MiniRunnerExecutorDescriptor> &GetDescriptors() { return descriptors_; }
+
+  friend std::ostream &operator<<(std::ostream &out, const MiniRunnerSchedule &s);
 
  private:
   /** Tables required to execute the descriptors */
   std::set<std::string> tables_;
+  std::set<std::string> indexes_;
 
   /** MiniRunner executors and arguments to execute */
   std::vector<MiniRunnerExecutorDescriptor> descriptors_;
@@ -99,12 +122,13 @@ class MiniRunnerScheduler {
    * Create a schedule.
    *
    * @param tables Tables that are required
+   * @param indexes Indexes that are required
    * @param executor Executor
    * @param mode Execution mode
    * @param arguments Executor's iteration arguments
    */
-  void CreateSchedule(std::set<std::string> tables, MiniRunnerExecutor *executor, execution::vm::ExecutionMode mode,
-                      MiniRunnerArguments arguments);
+  void CreateSchedule(std::set<std::string> tables, std::set<std::string> indexes, MiniRunnerExecutor *executor,
+                      execution::vm::ExecutionMode mode, MiniRunnerArguments arguments);
 
   size_t NumSchedules() { return schedules_.size(); }
 

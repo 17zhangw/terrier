@@ -35,23 +35,21 @@ void MiniRunnerIndexJoinExecutor::RegisterIterations(MiniRunnerScheduler *schedu
   auto &key_sizes = config_->sweep_col_nums_;
   auto idx_sizes = config_->GetRowNumbersWithLimit(settings_->data_rows_limit_);
   auto types = {type::TypeId::INTEGER};
-  for (auto key_size : key_sizes) {
-    for (size_t j = 0; j < idx_sizes.size(); j++) {
-      auto inner_tbl = execution::sql::TableGenerator::GenerateTableName(types, {15}, idx_sizes[j], idx_sizes[j]);
-      if (idx_sizes[j] >= settings_->warmup_rows_limit_ && settings_->skip_large_rows_runs_) {
-        continue;
-      }
+  for (auto type : types) {
+    for (auto key_size : key_sizes) {
+      for (size_t j = 0; j < idx_sizes.size(); j++) {
+        auto inner_tbl = execution::sql::TableGenerator::GenerateTableName(types, {15}, idx_sizes[j], idx_sizes[j]);
+        auto index = execution::sql::TableGenerator::GenerateIndexName(type, 15, idx_sizes[j], key_size);
+        if (idx_sizes[j] >= settings_->warmup_rows_limit_ && settings_->skip_large_rows_runs_) {
+          continue;
+        }
 
-      for (size_t i = 0; i < idx_sizes.size(); i++) {
-        // TODO: pretty nasty inefficiency
-        auto outer_tbl = execution::sql::TableGenerator::GenerateTableName(types, {15}, idx_sizes[i], idx_sizes[i]);
+        for (size_t i = 0; i < idx_sizes.size(); i++) {
+          auto outer_tbl = execution::sql::TableGenerator::GenerateTableName(types, {15}, idx_sizes[i], idx_sizes[i]);
 
-        // Create inner
-        scheduler->CreateSchedule({outer_tbl, inner_tbl}, this, mode, {{key_size, 0, idx_sizes[j], 1}});
-        scheduler->CreateSchedule({outer_tbl, inner_tbl}, this, mode, {{key_size, idx_sizes[i], idx_sizes[j], -1}});
-
-        // Drop inner
-        scheduler->CreateSchedule({outer_tbl, inner_tbl}, this, mode, {{key_size, 0, idx_sizes[j], 0}});
+          scheduler->CreateSchedule({outer_tbl, inner_tbl}, {index}, this, mode,
+                                    {{key_size, idx_sizes[i], idx_sizes[j]}});
+        }
       }
     }
   }
@@ -64,17 +62,6 @@ void MiniRunnerIndexJoinExecutor::ExecuteIteration(const MiniRunnerIterationArgu
   auto key_num = iteration[0];
   auto outer = iteration[1];
   auto inner = iteration[2];
-  auto is_build = iteration[3];
-
-  if (outer == 0) {
-    if (is_build < 0) {
-      throw "Invalid is_build argument for IndexJoin";
-    }
-
-    MiniRunnersExecUtil::HandleBuildDropIndex(*db_main_, settings_->db_oid_, is_build != 0, tbl_cols, inner, key_num,
-                                              type);
-    return;
-  }
 
   auto type_size = type::TypeUtil::GetTypeTrueSize(type);
   auto tuple_size = type_size * key_num;

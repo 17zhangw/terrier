@@ -8,33 +8,6 @@
 
 namespace noisepage::runner {
 
-void MiniRunnersExecUtil::HandleBuildDropIndex(DBMain *db_main, catalog::db_oid_t db_oid, bool is_build,
-                                               int64_t tbl_cols, int64_t num_rows, int64_t num_key, type::TypeId type) {
-  auto block_store = db_main->GetStorageLayer()->GetBlockStore();
-  auto catalog = db_main->GetCatalogLayer()->GetCatalog();
-  auto metrics_manager = db_main->GetMetricsManager();
-  auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();
-
-  auto txn = txn_manager->BeginTransaction();
-  auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
-  auto exec_settings = MiniRunnersExecUtil::GetExecutionSettings(false);
-  auto exec_ctx = std::make_unique<execution::exec::ExecutionContext>(db_oid, common::ManagedPointer(txn), nullptr,
-                                                                      nullptr, common::ManagedPointer(accessor),
-                                                                      exec_settings, metrics_manager);
-
-  execution::sql::TableGenerator table_generator(exec_ctx.get(), block_store, accessor->GetDefaultNamespace());
-  if (is_build) {
-    table_generator.BuildMiniRunnerIndex(type, tbl_cols, num_rows, num_key);
-  } else {
-    bool result = table_generator.DropMiniRunnerIndex(type, tbl_cols, num_rows, num_key);
-    if (!result) {
-      throw "Drop Index has failed";
-    }
-  }
-
-  txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
-}
-
 void MiniRunnersExecUtil::DropIndexByName(DBMain *db_main, catalog::db_oid_t db_oid, const std::string &name) {
   auto catalog = db_main->GetCatalogLayer()->GetCatalog();
   auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();

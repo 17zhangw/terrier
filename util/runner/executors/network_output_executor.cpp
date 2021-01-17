@@ -12,11 +12,11 @@ void MiniRunnerNetworkOutputExecutor::RegisterIterations(MiniRunnerScheduler *sc
     return;
   }
 
-  if (mode == execution::vm::ExecutionMode::Interpret) {
+  if (mode != execution::vm::ExecutionMode::Interpret) {
     return;
   }
 
-  scheduler->CreateSchedule({}, this, mode, {});
+  scheduler->CreateSchedule({}, {}, this, mode, {});
 }
 
 void MiniRunnerNetworkOutputExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,

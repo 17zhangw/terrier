@@ -85,6 +85,11 @@ class MiniRunnersSettings {
   bool target_runner_specified_ = false;
 
   /**
+   * Log more extensively
+   */
+  bool log_detail_ = false;
+
+  /**
    * Target filter
    */
   const char *target_filter_ = nullptr;

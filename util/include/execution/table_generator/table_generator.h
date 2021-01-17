@@ -82,6 +82,23 @@ class TableGenerator {
   }
 
   /**
+   * Generate Index Name
+   *
+   * @param type Datatype of the underlying table
+   * @param tbl_cols Number of columns in the table
+   * @param row_num # of rows in the underlying table
+   * @param key_num Number of keys comprising the index
+   * @return index name
+   */
+  static std::string GenerateIndexName(type::TypeId type, uint32_t tbl_cols, int64_t row_num, int64_t key_num) {
+    auto table_name = GenerateTableName({type}, {tbl_cols}, row_num, row_num);
+    auto type_name = type::TypeUtil::TypeIdToString(type);
+    std::stringstream idx_name;
+    idx_name << table_name << "_index_" << key_num;
+    return idx_name.str();
+  }
+
+  /**
    * Generate test tables.
    */
   void GenerateTestTables();
@@ -112,16 +129,15 @@ class TableGenerator {
    */
   void BuildMiniRunnerIndex(type::TypeId type, uint32_t tbl_cols, int64_t row_num, int64_t key_num);
 
+  void BuildMiniRunnerIndex(const std::string &index_name);
+
   /**
-   * Drops a unique mini-runner index on GenerateTableName({type}, {tbl_cols}, row_num, row_num)
+   * Drops a unique mini-runner index
    *
-   * @param type Datatype of the underlying table
-   * @param tbl_cols Number of columns in the table
-   * @param row_num # of rows in the underlying table
-   * @param key_num Number of keys comprising the index
+   * @param idx_name Index name
    * @returns bool indicating whether successful
    */
-  bool DropMiniRunnerIndex(type::TypeId type, uint32_t tbl_cols, int64_t row_num, int64_t key_num);
+  bool DropMiniRunnerIndex(std::string idx_name);
 
  private:
   exec::ExecutionContext *exec_ctx_;
@@ -328,6 +344,17 @@ class TableGenerator {
    * @returns index OID of newly created index
    */
   catalog::index_oid_t CreateIndex(IndexInsertMeta *index_meta);
+
+  /**
+   * Deconstruct table information from name
+   */
+  void DeconstructTableName(const std::string &table_name, int64_t *row_num, int64_t *cardinality,
+                            std::vector<std::pair<type::TypeId, int64_t>> *col_dist);
+
+  /**
+   * Deconstruct Index Name
+   */
+  void DeconstructIndexName(const std::string &index_name, std::string *table_name, int64_t *key_num);
 
   /**
    * Fill a given table according to its metadata

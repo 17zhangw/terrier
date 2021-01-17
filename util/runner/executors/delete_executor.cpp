@@ -10,7 +10,7 @@ namespace noisepage::runner {
 
 void MiniRunnerDeleteExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
                                                   execution::vm::ExecutionMode mode) {
-  std::map<std::string, MiniRunnerArguments> mapping;
+  std::map<std::string, std::map<std::string, MiniRunnerArguments>> mapping;
   auto &idx_key = config_->sweep_update_index_col_nums_;
   auto row_nums = config_->GetRowNumbersWithLimit(settings_->data_rows_limit_);
   std::vector<type::TypeId> types = {type::TypeId::INTEGER, type::TypeId::BIGINT};
@@ -20,6 +20,7 @@ void MiniRunnerDeleteExecutor::RegisterIterations(MiniRunnerScheduler *scheduler
         if (row_num > settings_->updel_limit_) continue;
 
         auto tbl = execution::sql::TableGenerator::GenerateTableName({type}, {15}, row_num, row_num);
+        auto index = execution::sql::TableGenerator::GenerateIndexName(type, 15, row_num, idx_key_size);
         std::vector<int64_t> template_args{
             (type == type::TypeId::INTEGER) ? idx_key_size : 0, (type == type::TypeId::BIGINT) ? idx_key_size : 0,
             (type == type::TypeId::INTEGER) ? 15 : 0, (type == type::TypeId::BIGINT) ? 15 : 0, row_num};
@@ -35,37 +36,19 @@ void MiniRunnerDeleteExecutor::RegisterIterations(MiniRunnerScheduler *scheduler
           lookup_size *= 2;
         }
 
-        if (!lookups.empty()) {
-          // Special argument used to indicate a build index
-          // We need to do this to prevent update/delete from unintentionally
-          // updating multiple indexes. This way, there will only be 1 index
-          // on the table at a given time.
-          std::vector<int64_t> arg_vec{template_args};
-          arg_vec.emplace_back(0);
-          arg_vec.emplace_back(1);
-          mapping[tbl].emplace_back(std::move(arg_vec));
-        }
-
         for (auto lookup : lookups) {
           std::vector<int64_t> arg_vec{template_args};
           arg_vec.emplace_back(lookup);
-          arg_vec.emplace_back(-1);
-          mapping[tbl].emplace_back(std::move(arg_vec));
-        }
-
-        if (!lookups.empty()) {
-          // Special argument used to indicate a drop index
-          std::vector<int64_t> arg_vec{template_args};
-          arg_vec.emplace_back(0);
-          arg_vec.emplace_back(0);
-          mapping[tbl].emplace_back(std::move(arg_vec));
+          mapping[tbl][index].emplace_back(std::move(arg_vec));
         }
       }
     }
   }
 
   for (auto &map : mapping) {
-    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+    for (auto &second : map.second) {
+      scheduler->CreateSchedule({map.first}, {second.first}, this, mode, std::move(second.second));
+    }
   }
 }
 
@@ -77,7 +60,6 @@ void MiniRunnerDeleteExecutor::ExecuteIteration(const MiniRunnerIterationArgumen
   auto tbl_bigints = iteration[3];
   auto row = iteration[4];
   auto car = iteration[5];
-  auto is_build = iteration[6];
 
   // A lookup size of 0 indicates a special query
   auto type = tbl_ints != 0 ? (type::TypeId::INTEGER) : (type::TypeId::BIGINT);
@@ -87,17 +69,6 @@ void MiniRunnerDeleteExecutor::ExecuteIteration(const MiniRunnerIterationArgumen
   auto num_col = num_integers + num_bigints;
   auto tbl_col = tbl_ints + tbl_bigints;
   auto tbl_size = tbl_ints * int_size + tbl_bigints * bigint_size;
-
-  if (car == 0) {
-    // A lookup size of 0 indicates a special query
-    if (is_build < 0) {
-      throw "Invalid is_build argument for ExecuteDelete";
-    }
-
-    MiniRunnersExecUtil::HandleBuildDropIndex(*db_main_, settings_->db_oid_, is_build != 0, tbl_col, row, num_col,
-                                              type);
-    return;
-  }
 
   auto units = std::make_unique<selfdriving::PipelineOperatingUnits>();
   selfdriving::ExecutionOperatingUnitFeatureVector pipe0_vec;

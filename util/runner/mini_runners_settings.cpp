@@ -29,6 +29,7 @@ void MiniRunnersSettings::InitializeFromArguments(int argc, char **argv) {
   Arg run_limit{"--mini_runner_rows_limit=", false};
   Arg batch_size{"--index_model_batch_size=", false};
   Arg load_upfront{"--load_upfront=", false};
+  Arg log_detail{"--log_detail=", false};
   Arg *args[] = {&port_info,
                  &filter_info,
                  &skip_large_rows_runs_info,
@@ -41,7 +42,8 @@ void MiniRunnersSettings::InitializeFromArguments(int argc, char **argv) {
                  &run_limit,
                  &batch_size,
                  &index_warm_num_info,
-                 &load_upfront};
+                 &load_upfront,
+                 &log_detail};
 
   for (int i = 0; i < argc; i++) {
     for (auto *arg : args) {
@@ -72,6 +74,7 @@ void MiniRunnersSettings::InitializeFromArguments(int argc, char **argv) {
   if (run_limit.found_) data_rows_limit_ = run_limit.int_value_;
   if (batch_size.found_) index_model_batch_size_ = batch_size.int_value_;
   if (load_upfront.found_) load_upfront_ = true;
+  if (log_detail.found_) log_detail_ = true;
 
   noisepage::LoggersUtil::Initialize();
   SETTINGS_LOG_INFO("Starting mini-runners with this parameter set:");
@@ -91,6 +94,7 @@ void MiniRunnersSettings::InitializeFromArguments(int argc, char **argv) {
   SETTINGS_LOG_INFO("Mini Runner Rows Limit ({}): {}", run_limit.match_, data_rows_limit_);
   SETTINGS_LOG_INFO("Load Upfront ({}): {}", load_upfront.match_, load_upfront_);
   SETTINGS_LOG_INFO("Filter ({}): {}", filter_info.match_, target_filter_);
+  SETTINGS_LOG_INFO("Log Detail ({}): {}", log_detail.match_, log_detail_);
 }
 
 };  // namespace noisepage::runner

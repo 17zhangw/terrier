@@ -55,8 +55,6 @@ class MiniRunnersExecUtil {
     }
   }
 
-  static void HandleBuildDropIndex(DBMain *db_main, catalog::db_oid_t db_oid, bool is_build, int64_t tbl_cols,
-                                   int64_t num_rows, int64_t num_key, type::TypeId type);
   static void DropIndexByName(DBMain *db_main, catalog::db_oid_t db_oid, const std::string &name);
 
   struct OptimizeRequest {

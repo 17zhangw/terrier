@@ -30,7 +30,7 @@ void MiniRunnerOutputExecutor::RegisterIterations(MiniRunnerScheduler *scheduler
   // Generate special Output feature [1 0 0 1 1]
   std::vector<int64_t> args({0, 0, 1});
   arguments.emplace_back(std::move(args));
-  scheduler->CreateSchedule({}, this, mode, std::move(arguments));
+  scheduler->CreateSchedule({}, {}, this, mode, std::move(arguments));
 }
 
 void MiniRunnerOutputExecutor::ExecuteIteration(const MiniRunnerIterationArgument &iteration,

@@ -59,7 +59,7 @@ void MiniRunnerAggKeyExecutor::RegisterIterations(MiniRunnerScheduler *scheduler
   }
 
   for (auto &map : mapping) {
-    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+    scheduler->CreateSchedule({map.first}, {}, this, mode, std::move(map.second));
   }
 }
 

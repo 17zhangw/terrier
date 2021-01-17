@@ -19,7 +19,7 @@ void IndexScanChecker(size_t num_keys, common::ManagedPointer<transaction::Trans
 
 void MiniRunnerIndexScanExecutor::RegisterIterations(MiniRunnerScheduler *scheduler, bool rerun,
                                                      execution::vm::ExecutionMode mode) {
-  std::map<std::string, MiniRunnerArguments> mapping;
+  std::map<std::string, std::map<std::string, MiniRunnerArguments>> mapping;
 
   auto types = {type::TypeId::INTEGER, type::TypeId::BIGINT, type::TypeId::VARCHAR};
   auto idx_sizes = config_->GetRowNumbersWithLimit(settings_->data_rows_limit_);
@@ -34,12 +34,8 @@ void MiniRunnerIndexScanExecutor::RegisterIterations(MiniRunnerScheduler *schedu
 
     for (auto key_size : *key_sizes) {
       for (auto idx_size : idx_sizes) {
-        bool real_iteration = false;
-        std::vector<std::vector<int64_t>> args_vector;
         auto tbl = execution::sql::TableGenerator::GenerateTableName({type}, {tbl_cols}, idx_size, idx_size);
-
-        // Construct index
-        args_vector.push_back({static_cast<int64_t>(type), tbl_cols, key_size, idx_size, 0, 1});
+        auto index = execution::sql::TableGenerator::GenerateIndexName(type, tbl_cols, idx_size, key_size);
 
         // Lookup indexes
         for (auto lookup_size : lookup_sizes) {
@@ -48,23 +44,17 @@ void MiniRunnerIndexScanExecutor::RegisterIterations(MiniRunnerScheduler *schedu
               continue;
             }
 
-            args_vector.push_back({static_cast<int64_t>(type), tbl_cols, key_size, idx_size, lookup_size, -1});
-            real_iteration = true;
+            mapping[tbl][index].push_back({static_cast<int64_t>(type), tbl_cols, key_size, idx_size, lookup_size});
           }
-        }
-
-        // Drop index
-        args_vector.push_back({static_cast<int64_t>(type), tbl_cols, key_size, idx_size, 0, 0});
-
-        if (real_iteration) {
-          mapping[tbl] = std::move(args_vector);
         }
       }
     }
   }
 
   for (auto &map : mapping) {
-    scheduler->CreateSchedule({map.first}, this, mode, std::move(map.second));
+    for (auto &second : map.second) {
+      scheduler->CreateSchedule({map.first}, {second.first}, this, mode, std::move(second.second));
+    }
   }
 }
 
@@ -75,17 +65,6 @@ void MiniRunnerIndexScanExecutor::ExecuteIteration(const MiniRunnerIterationArgu
   size_t key_num = iteration[2];
   auto num_rows = iteration[3];
   auto lookup_size = iteration[4];
-  auto is_build = iteration[5];
-
-  if (lookup_size == 0) {
-    if (is_build < 0) {
-      throw "Invalid is_build argument for IndexScan";
-    }
-
-    MiniRunnersExecUtil::HandleBuildDropIndex((*db_main_), settings_->db_oid_, is_build != 0, tbl_cols, num_rows,
-                                              key_num, type);
-    return;
-  }
 
   // Build operating unit features
   size_t tuple_size = 0;
