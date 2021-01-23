@@ -281,6 +281,7 @@ void ExecuteRunners() {
   for (int i = 0; i < rerun; i++) {
     // Generate arguments
     if (i == 0 || i == 1) {
+      scheduler.ClearSchedules();
       auto vm_modes = {noisepage::execution::vm::ExecutionMode::Interpret,
                        noisepage::execution::vm::ExecutionMode::Compiled};
       for (auto mode : vm_modes) {
@@ -288,8 +289,6 @@ void ExecuteRunners() {
           executor->RegisterIterations(&scheduler, i != 0, mode);
         }
       }
-    } else {
-      scheduler.ClearSchedules();
     }
 
     size_t num_iterations = scheduler.NumIterations();

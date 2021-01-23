@@ -553,8 +553,7 @@ void TableGenerator::BuildMiniRunnerIndex(type::TypeId type, uint32_t tbl_cols, 
   }
 
   auto index_meta = IndexInsertMeta(idx_name_str.c_str(), table_name.c_str(), idx_meta_cols);
-  auto index_oid = CreateIndex(&index_meta);
-  EXECUTION_LOG_INFO("Created index {} ({})", idx_name_str, index_oid.UnderlyingValue());
+  CreateIndex(&index_meta);
 }
 
 bool TableGenerator::DropMiniRunnerIndex(std::string idx_name) {
@@ -564,7 +563,6 @@ bool TableGenerator::DropMiniRunnerIndex(std::string idx_name) {
     return false;
   }
 
-  EXECUTION_LOG_INFO("Dropping index {} on table {}", idx_name, matched.UnderlyingValue());
   return accessor->DropIndex(matched);
 }
 
