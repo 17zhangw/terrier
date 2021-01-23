@@ -109,7 +109,6 @@ void PlanGenerator::CorrectOutputPlanWithProjection() {
     }
   }
 
-  // We don't actually want shared_ptr but pending another PR
   auto schema = std::make_unique<planner::OutputSchema>(std::move(columns));
   if (output_plan_) {
     plan_meta_data_->AddPlanNodeMetaData(output_plan_->GetPlanNodeId(), plan_node_meta_data_);
@@ -237,6 +236,7 @@ void PlanGenerator::Visit(const IndexScan *op) {
   builder.SetColumnOids(std::move(column_ids));
   builder.SetTableNumTuple(table_num_tuple);
   builder.SetIndexSize(accessor_->GetTable(tbl_oid)->GetNumTuple());
+  builder.SetCoverAllColumns(op->GetCoverAllColumns());
 
   auto type = op->GetIndexScanType();
   builder.SetScanType(type);
