@@ -386,4 +386,13 @@ SETTING_string(
     false,
     noisepage::settings::Callbacks::NoOp
 )
+
+SETTING_string(
+    startup_ddl_path,
+    "Path to startup DDL (default: startup.sql)",
+    "startup.sql",
+    false,
+    noisepage::settings::Callbacks::NoOp
+)
+
     // clang-format on

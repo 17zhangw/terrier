@@ -412,6 +412,13 @@ class DBMain {
             txn_layer->GetTransactionManager(), catalog_layer->GetCatalog(), DISABLED,
             common::ManagedPointer(settings_manager), common::ManagedPointer(stats_storage), optimizer_timeout_,
             use_query_cache_, execution_mode_);
+
+        if (create_default_database_) {
+          // Load startup DDL only if not recovering.
+          LoadStartupDDL(common::ManagedPointer(settings_manager), common::ManagedPointer(traffic_cop),
+                         common::ManagedPointer(catalog_layer->GetCatalog()),
+                         common::ManagedPointer(txn_layer->GetTransactionManager()), catalog::DEFAULT_DATABASE);
+        }
       }
 
       std::unique_ptr<NetworkLayer> network_layer = DISABLED;
@@ -759,6 +766,11 @@ class DBMain {
 
    private:
     std::unordered_map<settings::Param, settings::ParamInfo> param_map_;
+
+    void LoadStartupDDL(common::ManagedPointer<settings::SettingsManager> settings,
+                        common::ManagedPointer<trafficcop::TrafficCop> t_cop,
+                        common::ManagedPointer<catalog::Catalog> catalog,
+                        common::ManagedPointer<transaction::TransactionManager> txn_manager, std::string db_name);
 
     // These are meant to be reasonable defaults, mostly for tests. New settings should probably just mirror their
     // default values here. Larger scale tests and benchmarks may need to to use setters on the Builder to adjust these
