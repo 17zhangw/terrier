@@ -1045,7 +1045,7 @@ set_tests_properties(
         messenger_test jumbotest_messenger_messenger_test
         PROPERTIES RESOURCE_GROUPS "port15721:1;port15722:1;port15723:1;port9022:1;port9023:1;port9024:1")
 set_tests_properties(
-        modeling_test
+        model_server_test
         PROPERTIES RESOURCE_GROUPS "port15721:1;port9022:1")
 #######################################################################################################################
 # HEADER Benchmarks.
@@ -1135,6 +1135,20 @@ if (${NOISEPAGE_ENABLE_SHARED})
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
 endif ()
+
+#######################################################################################################################
+# HEADER startup.sql post-copy command.
+# startup.sql           :   Post-copy command for startup.sql into the bin directory
+#######################################################################################################################
+
+add_custom_command(
+        TARGET noisepage  # As a proxy for noisepage_objlib since object libraries don't support POST_BUILD.
+        DEPENDS "${PROJECT_SOURCE_DIR}/src/main/startup.sql"
+        POST_BUILD
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMAND cp ${PROJECT_SOURCE_DIR}/src/main/startup.sql ${CMAKE_BINARY_DIR}/bin/startup.sql
+        USES_TERMINAL
+)
 
 #######################################################################################################################
 # HEADER Miscellaneous.

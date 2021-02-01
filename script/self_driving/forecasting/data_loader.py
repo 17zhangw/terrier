@@ -4,8 +4,7 @@ This file contains data loading logic from the query trace file produced. Hardco
 query trace producer.
 """
 
-from util.constants import LOG
-
+import logging
 from typing import Dict, Tuple
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
@@ -39,7 +38,7 @@ class DataLoader:
         Load data from csv
         :return: Loaded 2D numpy array of [query_id, timestamp]
         """
-        LOG.info(f"Loading data from {self._query_trace_file}")
+        logging.info(f"Loading data from {self._query_trace_file}")
         # Load data from the files
         with open(self._query_trace_file, newline='') as csvfile:
             reader = csv.DictReader(csvfile)

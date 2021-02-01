@@ -59,6 +59,7 @@ class Pilot {
   /**
    * Constructor for Pilot
    * @param model_save_path model save path
+   * @param forecast_model_save_path forecast model save path
    * @param catalog catalog
    * @param metrics_thread metrics thread for metrics manager
    * @param model_server_manager model server manager
@@ -67,8 +68,8 @@ class Pilot {
    * @param txn_manager transaction manager
    * @param workload_forecast_interval Interval used in the forecastor
    */
-  Pilot(std::string model_save_path, common::ManagedPointer<catalog::Catalog> catalog,
-        common::ManagedPointer<metrics::MetricsThread> metrics_thread,
+  Pilot(std::string model_save_path, std::string forecast_model_save_path,
+        common::ManagedPointer<catalog::Catalog> catalog, common::ManagedPointer<metrics::MetricsThread> metrics_thread,
         common::ManagedPointer<modelserver::ModelServerManager> model_server_manager,
         common::ManagedPointer<settings::SettingsManager> settings_manager,
         common::ManagedPointer<optimizer::StatsStorage> stats_storage,
@@ -78,6 +79,11 @@ class Pilot {
    * Performs Pilot Logic, load and execute the predict queries while extracting pipeline features
    */
   void PerformPlanning();
+
+  /**
+   * Performs training of the forecasting model
+   */
+  void PerformForecasterTrain();
 
  private:
   /**
@@ -93,6 +99,7 @@ class Pilot {
   void ExecuteForecast();
 
   std::string model_save_path_;
+  std::string forecast_model_save_path_;
   common::ManagedPointer<catalog::Catalog> catalog_;
   common::ManagedPointer<metrics::MetricsThread> metrics_thread_;
   common::ManagedPointer<modelserver::ModelServerManager> model_server_manager_;

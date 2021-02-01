@@ -4,8 +4,7 @@ This file contains model template and implementation for Forecaster. All forecas
 ForecastModel, and override the _do_fit and _do_predict abstract methods
 """
 
-from util.constants import LOG
-
+import logging
 from abc import ABC, abstractmethod
 import numpy as np
 import torch
@@ -175,7 +174,7 @@ class LSTM(nn.Module, ForecastModel):
         # Training specifics
         loss_function = nn.MSELoss()
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
-        LOG.info(f"Training with {len(train_seqs)} samples, {epochs} epochs:")
+        logging.info(f"Training with {len(train_seqs)} samples, {epochs} epochs:")
         for i in range(epochs):
             for seq, labels in train_seqs:
                 optimizer.zero_grad()
@@ -195,10 +194,10 @@ class LSTM(nn.Module, ForecastModel):
                 optimizer.step()
 
             if i % 25 == 0:
-                LOG.info(
+                logging.info(
                     f'[LSTM FIT]epoch: {i+1:3} loss: {single_loss.item():10.8f}')
 
-        LOG.info(
+        logging.info(
             f'[LSTM FIT]epoch: {epochs:3} loss: {single_loss.item():10.10f}')
 
     def _do_predict(self, seq: np.ndarray) -> float:
