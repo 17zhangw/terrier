@@ -23,13 +23,14 @@ class LoopbackConnection {
    * Constructor
    * @param port Port to connect to
    */
-  explicit LoopbackConnection(uint16_t port)
+  explicit LoopbackConnection(int port)
     : port_(port) {}
 
   /**
    * Connect
+   * @param database Database to connect to
    */
-  bool Connect();
+  bool Connect(const std::string &database);
 
   /**
    * Execute a DDL statement
@@ -54,7 +55,7 @@ class LoopbackConnection {
   ~LoopbackConnection();
 
  private:
-  uint16_t port_;
+  int port_;
   pqxx::connection *connection_ = NULL;
 };
 

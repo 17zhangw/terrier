@@ -5,11 +5,11 @@
 
 namespace noisepage::network {
 
-bool LoopbackConnection::Connect() {
+bool LoopbackConnection::Connect(const std::string &database) {
   std::string conn;
   {
     std::stringstream sstream;
-    sstream << "postgresql://127.0.0.1:{}" << port_;
+    sstream << "postgresql://127.0.0.1:" << port_ << "/" << database;
     conn = sstream.str();
   }
 
