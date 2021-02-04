@@ -26,7 +26,7 @@ MonteCarloTreeSearch::MonteCarloTreeSearch(
 
 void MonteCarloTreeSearch::BestAction(uint64_t simulation_number,
                                       std::vector<std::pair<const std::string, catalog::db_oid_t>> *best_action_seq) {
-  for (auto i = 0; i < simulation_number; i++) {
+  for (auto i = 0; i < (int)simulation_number; i++) {
     std::unordered_set<action_id_t> candidate_actions;
     for (auto action_id : candidate_actions_)
       candidate_actions.insert(action_id);

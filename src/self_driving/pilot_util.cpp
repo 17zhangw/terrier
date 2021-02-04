@@ -79,7 +79,7 @@ void PilotUtil::GetQueryPlans(
   auto catalog = pilot->catalog_;
   transaction::TransactionContext *txn = txn_manager->BeginTransaction();
 
-  for (auto idx = 0; idx <= end_segment_index; idx++) {
+  for (auto idx = 0; idx <= (int)end_segment_index; idx++) {
     for (auto &it : forecast->forecast_segments_[idx].id_to_num_exec_) {
       auto stmt_list = parser::PostgresParser::BuildParseTree(forecast->query_id_to_text_[it.first]);
       auto db_oid = static_cast<catalog::db_oid_t>(forecast->query_id_to_dboid_[it.first]);
