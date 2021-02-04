@@ -20,6 +20,9 @@ namespace transaction {
 class TransactionManager;
 }
 
+namespace planner {
+class AbstractPlanNode;
+}
 }  // namespace noisepage
 
 namespace noisepage::selfdriving {
@@ -38,7 +41,8 @@ class PilotUtil {
    * @returns const pointer to the collected pipeline data
    */
   static const std::list<metrics::PipelineMetricRawData::PipelineData> &CollectPipelineFeatures(
-      common::ManagedPointer<selfdriving::Pilot> pilot, common::ManagedPointer<selfdriving::WorkloadForecast> forecast);
+      common::ManagedPointer<Pilot> pilot, common::ManagedPointer<WorkloadForecast> forecast,
+      uint64_t start_segment_index, uint64_t end_segment_index, std::vector<execution::query_id_t> *pipeline_qids);
 
   /**
    * Perform inference through model server manager with collected pipeline metrics
@@ -50,9 +54,41 @@ class PilotUtil {
    */
   static void InferenceWithFeatures(
       const std::string &model_save_path, common::ManagedPointer<modelserver::ModelServerManager> model_server_manager,
+      const std::vector<execution::query_id_t> &pipeline_qids,
       const std::list<metrics::PipelineMetricRawData::PipelineData> &pipeline_data,
-      std::list<std::tuple<execution::query_id_t, execution::pipeline_id_t, std::vector<std::vector<double>>>>
-          *pipeline_to_prediction);
+      std::map<std::pair<execution::query_id_t, execution::pipeline_id_t>,
+               std::vector<std::vector<std::vector<double>>>> *pipeline_to_prediction);
+
+  /**
+   * Apply an action supplied through its query string to databases specified
+   * @param pointer to the pilot
+   * @param db_oids db_oids relevant to current action
+   * @param sql_query query of the action to be executed
+   */
+  static void ApplyAction(common::ManagedPointer<Pilot> pilot, const std::string &sql_query, catalog::db_oid_t db_oid);
+
+  /**
+   * Retrieve all query plans associated with queries in the interval of forecasted segments
+   * @param pilot pointer to the pilot
+   * @param forecast pointer to the forecast segments
+   * @param start_segment_index start index (inclusive)
+   * @param end_segment_index end index (inclusive)
+   * @return vector of query plans
+   */
+  static void GetQueryPlans(common::ManagedPointer<Pilot> pilot, common::ManagedPointer<WorkloadForecast> forecast,
+                            uint64_t end_segment_index,
+                            std::vector<std::unique_ptr<planner::AbstractPlanNode>> *plan_vecs);
+
+  /**
+   * Compute cost of executed queries in the segments between start and end index (both inclusive)
+   * @param pilot pointer to the pilot
+   * @param forecast pointer to the forecast segments
+   * @param start_segment_index start index (inclusive)
+   * @param end_segment_index end index (inclusive)
+   * @return average latency of queries weighted by their num of exec
+   */
+  static uint64_t ComputeCost(common::ManagedPointer<Pilot> pilot, common::ManagedPointer<WorkloadForecast> forecast,
+                              uint64_t start_segment_index, uint64_t end_segment_index);
 
  private:
   /**
@@ -65,6 +101,7 @@ class PilotUtil {
   static void GroupFeaturesByOU(
       std::list<std::tuple<execution::query_id_t, execution::pipeline_id_t,
                            std::vector<std::pair<ExecutionOperatingUnitType, uint64_t>>>> *pipeline_to_ou_position,
+      const std::vector<execution::query_id_t> &pipeline_qids,
       const std::list<metrics::PipelineMetricRawData::PipelineData> &pipeline_data,
       std::unordered_map<ExecutionOperatingUnitType, std::vector<std::vector<double>>> *ou_to_features);
 };

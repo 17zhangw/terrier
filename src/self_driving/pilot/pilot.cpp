@@ -8,8 +8,10 @@
 #include "messenger/messenger.h"
 #include "metrics/metrics_thread.h"
 #include "optimizer/statistics/stats_storage.h"
+#include "planner/plannodes/abstract_plan_node.h"
 #include "self_driving/forecast/workload_forecast.h"
 #include "self_driving/model_server/model_server_manager.h"
+#include "self_driving/pilot/mcst/monte_carlo_tree_search.h"
 #include "self_driving/pilot_util.h"
 #include "settings/settings_manager.h"
 
@@ -49,11 +51,26 @@ void Pilot::PerformPlanning() {
   forecast_ = std::make_unique<WorkloadForecast>(workload_forecast_interval_);
 
   metrics_thread_->PauseMetrics();
-  ExecuteForecast();
+  std::vector<std::pair<const std::string, catalog::db_oid_t>> best_action_seq;
+  Pilot::ActionSearch(&best_action_seq);
   metrics_thread_->ResumeMetrics();
 }
 
-void Pilot::ExecuteForecast() {
+void Pilot::ActionSearch(std::vector<std::pair<const std::string, catalog::db_oid_t>> *best_action_seq) {
+  auto num_segs = forecast_->GetNumberOfSegments();
+  auto end_segment_index = std::min(action_planning_horizon_ - 1, num_segs - 1);
+  std::vector<std::unique_ptr<planner::AbstractPlanNode>> plans;
+  PilotUtil::GetQueryPlans(common::ManagedPointer(this), common::ManagedPointer(forecast_), end_segment_index, &plans);
+  auto mcst = pilot::MonteCarloTreeSearch(common::ManagedPointer(this), common::ManagedPointer(forecast_), plans,
+                                          end_segment_index);
+  mcst.BestAction(1, best_action_seq);
+
+  PilotUtil::ApplyAction(common::ManagedPointer(this), best_action_seq->begin()->first, best_action_seq->begin()->second);
+}
+
+void Pilot::ExecuteForecast(std::map<std::pair<execution::query_id_t, execution::pipeline_id_t>,
+                                     std::vector<std::vector<std::vector<double>>>> *pipeline_to_prediction,
+                            uint64_t start_segment_index, uint64_t end_segment_index) {
   NOISEPAGE_ASSERT(forecast_ != nullptr, "Need forecast_ initialized.");
   bool oldval = settings_manager_->GetBool(settings::Param::pipeline_metrics_enable);
   bool oldcounter = settings_manager_->GetBool(settings::Param::counters_enable);
@@ -75,11 +92,12 @@ void Pilot::ExecuteForecast() {
   settings_manager_->SetInt(settings::Param::pipeline_metrics_interval, 0, common::ManagedPointer(action_context),
                             EmptySetterCallback);
 
+  std::vector<execution::query_id_t> pipeline_qids;
   auto pipeline_data = PilotUtil::CollectPipelineFeatures(common::ManagedPointer<selfdriving::Pilot>(this),
-                                                          common::ManagedPointer(forecast_));
-  std::list<std::tuple<execution::query_id_t, execution::pipeline_id_t, std::vector<std::vector<double>>>>
-      pipeline_to_prediction;
-  PilotUtil::InferenceWithFeatures(model_save_path_, model_server_manager_, pipeline_data, &pipeline_to_prediction);
+                                     common::ManagedPointer(forecast_), start_segment_index, end_segment_index,
+                                     &pipeline_qids);
+
+  PilotUtil::InferenceWithFeatures(model_save_path_, model_server_manager_, pipeline_qids, pipeline_data, pipeline_to_prediction);
 
   action_context = std::make_unique<common::ActionContext>(common::action_id_t(4));
   if (!oldval) {
