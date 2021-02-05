@@ -281,9 +281,11 @@ class ModelServerManager {
    * @return a map<cluster_id, map<query_id, vector<segment predictions>>>  returned by ModelServer and
    *    if API succeeds (True when succeeds). When API fails, the return results will be an empty map
    */
-  std::pair<selfdriving::ForecastPrediction, bool> InferForecastModel(
-      const std::string &input_path, const std::string &model_path, const std::vector<std::string> &model_names,
-      std::string *models_config, uint64_t interval_micro_sec);
+  std::pair<selfdriving::ForecastPrediction, bool> InferForecastModel(const std::string &input_path,
+                                                                      const std::string &model_path,
+                                                                      const std::vector<std::string> &model_names,
+                                                                      std::string *models_config,
+                                                                      uint64_t interval_micro_sec);
 
   /**
    * Perform inference on the given data file using a mini runner model

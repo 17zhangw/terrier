@@ -6,8 +6,8 @@
 #include "loggers/model_server_logger.h"
 #include "messenger/connection_destination.h"
 #include "messenger/messenger.h"
-#include "self_driving/model_server/model_server_manager.h"
 #include "self_driving/forecast/workload_forecast.h"
+#include "self_driving/model_server/model_server_manager.h"
 
 namespace noisepage::modelserver {
 static constexpr const char *MODEL_CONN_ID_NAME = "model-server-conn";
@@ -230,10 +230,9 @@ std::pair<std::vector<std::vector<double>>, bool> ModelServerManager::InferMiniR
   return InferModel<std::vector<std::vector<double>>>(ModelType::Type::MiniRunner, model_path, j);
 }
 
-std::pair<selfdriving::ForecastPrediction, bool>
-ModelServerManager::InferForecastModel(const std::string &input_path, const std::string &model_path,
-                                       const std::vector<std::string> &model_names, std::string *models_config,
-                                       uint64_t interval_micro_sec) {
+std::pair<selfdriving::ForecastPrediction, bool> ModelServerManager::InferForecastModel(
+    const std::string &input_path, const std::string &model_path, const std::vector<std::string> &model_names,
+    std::string *models_config, uint64_t interval_micro_sec) {
   nlohmann::json j;
   j["input_path"] = input_path;
   j["model_names"] = model_names;

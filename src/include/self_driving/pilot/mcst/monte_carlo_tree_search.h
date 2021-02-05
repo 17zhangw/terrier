@@ -23,7 +23,8 @@ class MonteCarloTreeSearch {
    * @param pilot pointer to pilot
    * @param forecast pointer to workload forecast
    * @param plans vector of query plans that the search tree is responsible for
-   * @param action_planning_horizon planning horizon (max depth of the tree, number of forecast segments to be considered)
+   * @param action_planning_horizon planning horizon (max depth of the tree, number of forecast segments to be
+   * considered)
    * @param end_segment_index the last segment index to be considered among the forecasted workloads
    */
   MonteCarloTreeSearch(common::ManagedPointer<Pilot> pilot,
@@ -48,6 +49,6 @@ class MonteCarloTreeSearch {
   std::map<action_id_t, std::unique_ptr<AbstractAction>> action_map_;
   std::vector<action_id_t> candidate_actions_;
 };
-}
+}  // namespace pilot
 
-}  // namespace noisepage::selfdriving::pilot
+}  // namespace noisepage::selfdriving

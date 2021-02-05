@@ -52,12 +52,12 @@ class PilotUtil {
    * @param pipeline_data collected pipeline metrics after executing the forecasted queries
    * @param pipeline_to_prediction list of tuples of query id, pipeline id and result of prediction
    */
-  static void InferenceWithFeatures(
-      const std::string &model_save_path, common::ManagedPointer<modelserver::ModelServerManager> model_server_manager,
-      const std::vector<execution::query_id_t> &pipeline_qids,
-      const std::list<metrics::PipelineMetricRawData::PipelineData> &pipeline_data,
-      std::map<std::pair<execution::query_id_t, execution::pipeline_id_t>,
-               std::vector<std::vector<std::vector<double>>>> *pipeline_to_prediction);
+  static void InferenceWithFeatures(const std::string &model_save_path,
+                                    common::ManagedPointer<modelserver::ModelServerManager> model_server_manager,
+                                    const std::vector<execution::query_id_t> &pipeline_qids,
+                                    const std::list<metrics::PipelineMetricRawData::PipelineData> &pipeline_data,
+                                    std::map<std::pair<execution::query_id_t, execution::pipeline_id_t>,
+                                             std::vector<std::vector<std::vector<double>>>> *pipeline_to_prediction);
 
   /**
    * Apply an action supplied through its query string to databases specified

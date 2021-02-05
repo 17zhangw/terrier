@@ -20,7 +20,7 @@
 namespace noisepage::selfdriving {
 class PilotUtil;
 class Pilot;
-}
+}  // namespace noisepage::selfdriving
 namespace noisepage::metrics {
 
 /**

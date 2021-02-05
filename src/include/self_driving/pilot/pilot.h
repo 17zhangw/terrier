@@ -53,7 +53,7 @@ namespace pilot {
 class AbstractAction;
 class MonteCarloTreeSearch;
 class TreeNode;
-}
+}  // namespace pilot
 
 class PilotUtil;
 
@@ -89,17 +89,13 @@ class Pilot {
    * Get model save path
    * @return save path of the mini model
    */
-  const std::string &GetModelSavePath() {
-    return model_save_path_;
-  }
+  const std::string &GetModelSavePath() { return model_save_path_; }
 
   /**
    * Get pointer to model server manager
    * @return pointer to model server manager
    */
-  common::ManagedPointer<modelserver::ModelServerManager> GetModelServerManager() {
-    return model_server_manager_;
-  }
+  common::ManagedPointer<modelserver::ModelServerManager> GetModelServerManager() { return model_server_manager_; }
 
   /**
    * Performs Pilot Logic, load and execute the predicted queries while extracting pipeline features
@@ -114,7 +110,7 @@ class Pilot {
   /**
    * Search for and apply the best action for the current timestamp
    */
-   void ActionSearch(std::vector<std::pair<const std::string, catalog::db_oid_t>> *best_action_seq);
+  void ActionSearch(std::vector<std::pair<const std::string, catalog::db_oid_t>> *best_action_seq);
 
  private:
   /**
@@ -127,8 +123,9 @@ class Pilot {
    */
   static void EmptySetterCallback(common::ManagedPointer<common::ActionContext> action_context UNUSED_ATTRIBUTE) {}
 
-  void ExecuteForecast(std::map<std::pair<execution::query_id_t, execution::pipeline_id_t>, std::vector<std::vector<std::vector<double>>>>
-                       *pipeline_to_prediction, uint64_t start_segment_index, uint64_t end_segment_index);
+  void ExecuteForecast(std::map<std::pair<execution::query_id_t, execution::pipeline_id_t>,
+                                std::vector<std::vector<std::vector<double>>>> *pipeline_to_prediction,
+                       uint64_t start_segment_index, uint64_t end_segment_index);
 
   std::string model_save_path_;
   std::string forecast_model_save_path_;

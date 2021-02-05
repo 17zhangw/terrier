@@ -42,8 +42,8 @@ void Pilot::PerformForecasterTrain() {
   std::vector<std::string> models{"LSTM"};
   std::string input_path{metrics::QueryTraceMetricRawData::FILES[1]};
   modelserver::ModelServerFuture<std::string> future;
-  model_server_manager_->TrainForecastModel(models, input_path, forecast_model_save_path_,
-                                            workload_forecast_interval_, common::ManagedPointer(&future));
+  model_server_manager_->TrainForecastModel(models, input_path, forecast_model_save_path_, workload_forecast_interval_,
+                                            common::ManagedPointer(&future));
   future.Wait();
 }
 
@@ -65,7 +65,8 @@ void Pilot::ActionSearch(std::vector<std::pair<const std::string, catalog::db_oi
                                           end_segment_index);
   mcst.BestAction(1, best_action_seq);
 
-  PilotUtil::ApplyAction(common::ManagedPointer(this), best_action_seq->begin()->first, best_action_seq->begin()->second);
+  PilotUtil::ApplyAction(common::ManagedPointer(this), best_action_seq->begin()->first,
+                         best_action_seq->begin()->second);
 }
 
 void Pilot::ExecuteForecast(std::map<std::pair<execution::query_id_t, execution::pipeline_id_t>,
@@ -94,10 +95,11 @@ void Pilot::ExecuteForecast(std::map<std::pair<execution::query_id_t, execution:
 
   std::vector<execution::query_id_t> pipeline_qids;
   auto pipeline_data = PilotUtil::CollectPipelineFeatures(common::ManagedPointer<selfdriving::Pilot>(this),
-                                     common::ManagedPointer(forecast_), start_segment_index, end_segment_index,
-                                     &pipeline_qids);
+                                                          common::ManagedPointer(forecast_), start_segment_index,
+                                                          end_segment_index, &pipeline_qids);
 
-  PilotUtil::InferenceWithFeatures(model_save_path_, model_server_manager_, pipeline_qids, pipeline_data, pipeline_to_prediction);
+  PilotUtil::InferenceWithFeatures(model_save_path_, model_server_manager_, pipeline_qids, pipeline_data,
+                                   pipeline_to_prediction);
 
   action_context = std::make_unique<common::ActionContext>(common::action_id_t(4));
   if (!oldval) {
