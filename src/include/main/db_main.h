@@ -25,6 +25,7 @@
 #include "traffic_cop/traffic_cop.h"
 #include "transaction/deferred_action_manager.h"
 #include "transaction/transaction_manager.h"
+#include "util/query_exec_util.h"
 
 namespace noisepage {
 

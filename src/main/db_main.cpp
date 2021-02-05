@@ -5,20 +5,12 @@
 #undef __SETTING_GFLAGS_DEFINE__     // NOLINT
 
 #include "execution/execution_util.h"
-#include "network/loopback/loopback.h"
 #include "network/postgres/postgres_network_commands_util.h"
+#include "optimizer/cost_model/trivial_cost_model.h"
 
 namespace noisepage {
 
 void DBMain::Run() {
-  NOISEPAGE_ASSERT(network_layer_ != DISABLED, "Trying to run without a NetworkLayer.");
-  const auto server = network_layer_->GetServer();
-  try {
-    server->RunServer();
-  } catch (NetworkProcessException &e) {
-    return;
-  }
-
   // Load startup ddls
   std::vector<std::string> startup_ddls;
   if (settings_manager_ != NULL) {
@@ -33,10 +25,27 @@ void DBMain::Run() {
   }
 
   if (!startup_ddls.empty()) {
-    network::LoopbackConnection loopback{settings_manager_->GetInt(settings::Param::port)};
-    if (loopback.Connect(catalog::DEFAULT_DATABASE)) {
-      loopback.ExecuteDDLs(startup_ddls);
+    auto txn_manager = txn_layer_->GetTransactionManager();
+    auto catalog = catalog_layer_->GetCatalog();
+    auto *txn = txn_manager->BeginTransaction();
+    auto db_oid = catalog->GetDatabaseOid(common::ManagedPointer(txn), catalog::DEFAULT_DATABASE);
+    auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
+    for (auto &ddl : startup_ddls) {
+      util::QueryExecUtil::ExecuteStatement(db_oid, common::ManagedPointer(txn), common::ManagedPointer(accessor),
+                                            common::ManagedPointer(settings_manager_),
+                                            std::make_unique<optimizer::TrivialCostModel>(),
+                                            common::ManagedPointer(stats_storage_),
+                                            settings_manager_->GetInt(settings::Param::task_execution_timeout), ddl);
     }
+    txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
+  }
+
+  NOISEPAGE_ASSERT(network_layer_ != DISABLED, "Trying to run without a NetworkLayer.");
+  const auto server = network_layer_->GetServer();
+  try {
+    server->RunServer();
+  } catch (NetworkProcessException &e) {
+    return;
   }
 
   {
