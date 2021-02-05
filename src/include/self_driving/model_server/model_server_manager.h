@@ -22,6 +22,7 @@
 #include "common/json.h"
 #include "common/managed_pointer.h"
 #include "messenger/messenger_defs.h"
+#include "self_driving/forecast/workload_forecast.h"
 
 namespace noisepage::messenger {
 class ConnectionRouter;
@@ -280,7 +281,7 @@ class ModelServerManager {
    * @return a map<cluster_id, map<query_id, vector<segment predictions>>>  returned by ModelServer and
    *    if API succeeds (True when succeeds). When API fails, the return results will be an empty map
    */
-  std::pair<std::unordered_map<uint64_t, std::unordered_map<uint64_t, std::vector<double>>>, bool> InferForecastModel(
+  std::pair<selfdriving::ForecastPrediction, bool> InferForecastModel(
       const std::string &input_path, const std::string &model_path, const std::vector<std::string> &model_names,
       std::string *models_config, uint64_t interval_micro_sec);
 

@@ -15,6 +15,8 @@ namespace pilot {
 class MonteCarloTreeSearch;
 }
 
+using ForecastPrediction = std::unordered_map<uint64_t, std::unordered_map<uint64_t, std::vector<double>>>;
+
 /**
  * Breaking predicted queries passed in by the Pilot into segments by their associated timestamps
  * Executing each query while extracting pipeline features

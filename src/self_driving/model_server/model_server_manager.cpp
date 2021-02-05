@@ -7,6 +7,7 @@
 #include "messenger/connection_destination.h"
 #include "messenger/messenger.h"
 #include "self_driving/model_server/model_server_manager.h"
+#include "self_driving/forecast/workload_forecast.h"
 
 namespace noisepage::modelserver {
 static constexpr const char *MODEL_CONN_ID_NAME = "model-server-conn";
@@ -229,7 +230,7 @@ std::pair<std::vector<std::vector<double>>, bool> ModelServerManager::InferMiniR
   return InferModel<std::vector<std::vector<double>>>(ModelType::Type::MiniRunner, model_path, j);
 }
 
-std::pair<std::unordered_map<uint64_t, std::unordered_map<uint64_t, std::vector<double>>>, bool>
+std::pair<selfdriving::ForecastPrediction, bool>
 ModelServerManager::InferForecastModel(const std::string &input_path, const std::string &model_path,
                                        const std::vector<std::string> &model_names, std::string *models_config,
                                        uint64_t interval_micro_sec) {
@@ -241,7 +242,7 @@ ModelServerManager::InferForecastModel(const std::string &input_path, const std:
     j["models_config"] = *models_config;
   }
 
-  std::unordered_map<uint64_t, std::unordered_map<uint64_t, std::vector<double>>> result;
+  selfdriving::ForecastPrediction result;
   auto data = InferModel<std::map<std::string, std::map<std::string, std::vector<double>>>>(ModelType::Type::Forecast,
                                                                                             model_path, j);
   for (auto &cid_pair : data.first) {
