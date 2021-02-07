@@ -34,7 +34,7 @@ class WorkloadForecast {
    * Get number of forecasted segments
    * @return number of forecasted segments
    */
-  uint64_t GetNumberOfSegments() { return num_forecast_segment_; };
+  uint64_t GetNumberOfSegments() { return num_forecast_segment_; }
 
  private:
   friend class PilotUtil;
@@ -55,7 +55,7 @@ class WorkloadForecast {
   uint64_t num_sample_{2};
 
   std::vector<WorkloadForecastSegment> forecast_segments_;
-  uint64_t num_forecast_segment_{0};
+  uint64_t num_forecast_segment_;
   uint64_t forecast_interval_;
   uint64_t optimizer_timeout_{10000000};
 };

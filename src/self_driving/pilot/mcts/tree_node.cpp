@@ -4,7 +4,7 @@
 
 #include "self_driving/forecast/workload_forecast.h"
 #include "self_driving/pilot/action/abstract_action.h"
-#include "self_driving/pilot/mcst/tree_node.h"
+#include "self_driving/pilot/mcts/tree_node.h"
 #include "self_driving/pilot/pilot.h"
 #include "self_driving/pilot_util.h"
 
@@ -60,8 +60,8 @@ common::ManagedPointer<TreeNode> TreeNode::SampleChild() {
                      std::sqrt(2 * std::log(number_of_visits_) / child->number_of_visits_);
     children_weights.push_back(child_obj);
   }
-  std::discrete_distribution<size_t> children_dist(children_weights.begin(), children_weights.end());
-  auto device = std::mt19937{std::random_device{}()};
+  std::discrete_distribution<int> children_dist(children_weights.begin(), children_weights.end());
+  auto device = std::mt19937 {std::random_device {}()};
   return common::ManagedPointer(children_.at(children_dist(device)));
 }
 
@@ -91,6 +91,8 @@ void TreeNode::ChildrenRollout(common::ManagedPointer<Pilot> pilot,
                                const std::unordered_set<action_id_t> &candidate_actions) {
   auto start_segment_index = tree_start_segment_index + depth_;
   auto end_segment_index = tree_end_segment_index;
+  NOISEPAGE_ASSERT(start_segment_index <= end_segment_index,
+                   "start segment index should be no greater than the end segment index");
 
   for (const auto &action_id : candidate_actions) {
     // expand each action not yet applied
@@ -101,7 +103,9 @@ void TreeNode::ChildrenRollout(common::ManagedPointer<Pilot> pilot,
                            action_map.at(action_id)->GetDatabaseOid());
 
     uint64_t child_segment_cost = PilotUtil::ComputeCost(pilot, forecast, start_segment_index, start_segment_index);
-    uint64_t later_segments_cost = PilotUtil::ComputeCost(pilot, forecast, start_segment_index + 1, end_segment_index);
+    uint64_t later_segments_cost = 0;
+    if (start_segment_index != end_segment_index)
+      later_segments_cost = PilotUtil::ComputeCost(pilot, forecast, start_segment_index + 1, end_segment_index);
 
     children_.push_back(
         std::make_unique<TreeNode>(common::ManagedPointer(this), action_id, child_segment_cost, later_segments_cost));

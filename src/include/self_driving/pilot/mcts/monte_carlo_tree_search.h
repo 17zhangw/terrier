@@ -1,11 +1,14 @@
 #pragma once
 
 #include <map>
+#include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "self_driving/pilot/action/abstract_action.h"
 #include "self_driving/pilot/action/action_defs.h"
-#include "self_driving/pilot/mcst/tree_node.h"
+#include "self_driving/pilot/mcts/tree_node.h"
 #include "self_driving/pilot/pilot.h"
 
 namespace noisepage::selfdriving {
@@ -42,8 +45,8 @@ class MonteCarloTreeSearch {
                   std::vector<std::pair<const std::string, catalog::db_oid_t>> *best_action_seq);
 
  private:
-  common::ManagedPointer<Pilot> pilot_;
-  common::ManagedPointer<selfdriving::WorkloadForecast> forecast_;
+  const common::ManagedPointer<Pilot> pilot_;
+  const common::ManagedPointer<selfdriving::WorkloadForecast> forecast_;
   const uint64_t end_segment_index_;
   std::unique_ptr<TreeNode> root_;
   std::map<action_id_t, std::unique_ptr<AbstractAction>> action_map_;

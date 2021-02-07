@@ -1,9 +1,10 @@
-#include "self_driving/pilot/mcst/monte_carlo_tree_search.h"
+#include "self_driving/pilot/mcts/monte_carlo_tree_search.h"
 
 #include <map>
 #include <vector>
 
 #include "common/managed_pointer.h"
+#include "loggers/selfdriving_logger.h"
 #include "self_driving/pilot/action/generators/change_knob_action_generator.h"
 #include "self_driving/pilot/action/generators/index_action_generator.h"
 #include "self_driving/pilot_util.h"
@@ -26,7 +27,7 @@ MonteCarloTreeSearch::MonteCarloTreeSearch(common::ManagedPointer<Pilot> pilot,
 
 void MonteCarloTreeSearch::BestAction(uint64_t simulation_number,
                                       std::vector<std::pair<const std::string, catalog::db_oid_t>> *best_action_seq) {
-  for (auto i = 0; i < (int)simulation_number; i++) {
+  for (auto i = 0; i < simulation_number; i++) {
     std::unordered_set<action_id_t> candidate_actions;
     for (auto action_id : candidate_actions_) candidate_actions.insert(action_id);
     auto vertex = TreeNode::Selection(common::ManagedPointer(root_), pilot_, action_map_, &candidate_actions);
@@ -39,7 +40,7 @@ void MonteCarloTreeSearch::BestAction(uint64_t simulation_number,
     auto best_child = curr_node->BestSubtree();
     best_action_seq->emplace_back(action_map_.at(best_child->GetCurrentAction())->GetSQLCommand(),
                                   action_map_.at(best_child->GetCurrentAction())->GetDatabaseOid());
-    std::cout << action_map_.at(best_child->GetCurrentAction())->GetSQLCommand() << std::endl;
+    SELFDRIVING_LOG_DEBUG(action_map_.at(best_child->GetCurrentAction())->GetSQLCommand());
     curr_node = best_child;
   }
 }

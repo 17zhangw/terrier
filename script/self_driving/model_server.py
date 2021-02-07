@@ -152,9 +152,12 @@ class MiniRunnerModelServer:
         if not save_path.exists():
             return None
 
+        # use the path string as the key of the cache
+        save_path_str = str(save_path)
+
         # Load from cache
         if self.cache.get(save_path, None) is not None:
-            return self.cache[save_path]
+            return self.cache[save_path_str]
 
         # Load into cache
         with save_path.open(mode='rb') as f:
@@ -165,7 +168,7 @@ class MiniRunnerModelServer:
                 logging.warning(f"Empty model at {str(save_path)}")
                 return None
 
-            self.cache[str(save_path)] = model
+            self.cache[save_path_str] = model
             return model
 
 
@@ -454,7 +457,6 @@ class ModelServer:
 
         msg = Message.from_json(tokens[2])
         return msg_id, recv_id, msg
-
 
     def _infer(self, data: Dict) -> Tuple[List, bool, str]:
         """

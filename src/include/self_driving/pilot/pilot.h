@@ -109,6 +109,7 @@ class Pilot {
 
   /**
    * Search for and apply the best action for the current timestamp
+   * @param best_action_seq pointer to the vector to be filled with the sequence of best actions to take at current time
    */
   void ActionSearch(std::vector<std::pair<const std::string, catalog::db_oid_t>> *best_action_seq);
 
@@ -123,6 +124,12 @@ class Pilot {
    */
   static void EmptySetterCallback(common::ManagedPointer<common::ActionContext> action_context UNUSED_ATTRIBUTE) {}
 
+  /**
+   *
+   * @param pipeline_to_prediction
+   * @param start_segment_index
+   * @param end_segment_index
+   */
   void ExecuteForecast(std::map<std::pair<execution::query_id_t, execution::pipeline_id_t>,
                                 std::vector<std::vector<std::vector<double>>>> *pipeline_to_prediction,
                        uint64_t start_segment_index, uint64_t end_segment_index);
