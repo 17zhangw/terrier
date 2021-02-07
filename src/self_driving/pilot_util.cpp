@@ -94,7 +94,7 @@ void PilotUtil::GetQueryPlans(common::ManagedPointer<Pilot> pilot, common::Manag
   auto catalog = pilot->catalog_;
   transaction::TransactionContext *txn = txn_manager->BeginTransaction();
 
-  for (auto idx = 0; idx <= end_segment_index; idx++) {
+  for (uint64_t idx = 0; idx <= end_segment_index; idx++) {
     for (auto &it : forecast->forecast_segments_[idx].id_to_num_exec_) {
       auto stmt_list = parser::PostgresParser::BuildParseTree(forecast->query_id_to_text_[it.first]);
       auto db_oid = static_cast<catalog::db_oid_t>(forecast->query_id_to_dboid_[it.first]);
@@ -157,6 +157,7 @@ const std::list<metrics::PipelineMetricRawData::PipelineData> &PilotUtil::Collec
     uint64_t start_segment_index, uint64_t end_segment_index, std::vector<execution::query_id_t> *pipeline_qids) {
   auto txn_manager = pilot->txn_manager_;
   auto catalog = pilot->catalog_;
+  auto metrics_manager = pilot->metrics_thread_->GetMetricsManager();
   transaction::TransactionContext *txn;
 
   execution::exec::ExecutionSettings exec_settings{};
