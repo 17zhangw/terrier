@@ -45,18 +45,22 @@ void PilotUtil::ApplyAction(common::ManagedPointer<Pilot> pilot, const std::stri
   std::string query = sql_query;
   auto parse_tree = parser::PostgresParser::BuildParseTree(sql_query);
   auto statement = std::make_unique<network::Statement>(std::move(query), std::move(parse_tree));
+
   if (statement->GetQueryType() == network::QueryType::QUERY_SET) {
+    // The set statements are executed differently (through settings_manager_)
     const auto &set_stmt = statement->RootStatement().CastManagedPointerTo<parser::VariableSetStatement>();
     pilot->settings_manager_->SetParameter(set_stmt->GetParameterName(), set_stmt->GetValues());
   } else {
+    // For all other actions, we apply the action by running it as query in a committed transaction
     std::unique_ptr<optimizer::AbstractCostModel> cost_model = std::make_unique<optimizer::TrivialCostModel>();
     txn = txn_manager->BeginTransaction();
 
     auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
 
-    auto out_plan = PilotUtil::GetOutPlan(txn, common::ManagedPointer(accessor), nullptr, nullptr,
-                                          common::ManagedPointer(parse_tree), db_oid, pilot->stats_storage_,
-                                          pilot->forecast_->optimizer_timeout_);
+    // Parameters are also specified in the query string, hence we have no parameters nor parameter types here
+    auto out_plan = PilotUtil::GenerateQueryPlan(txn, common::ManagedPointer(accessor), nullptr, nullptr,
+                                                 common::ManagedPointer(parse_tree), db_oid, pilot->stats_storage_,
+                                                 pilot->forecast_->GetOptimizerTimeout());
 
     auto exec_query = execution::compiler::CompilationContext::Compile(*out_plan, exec_settings, accessor.get(),
                                                                        execution::compiler::CompilationMode::OneShot);
@@ -71,7 +75,7 @@ void PilotUtil::ApplyAction(common::ManagedPointer<Pilot> pilot, const std::stri
   }
 }
 
-std::unique_ptr<planner::AbstractPlanNode> PilotUtil::GetOutPlan(
+std::unique_ptr<planner::AbstractPlanNode> PilotUtil::GenerateQueryPlan(
     transaction::TransactionContext *txn, common::ManagedPointer<catalog::CatalogAccessor> accessor,
     common::ManagedPointer<std::vector<parser::ConstantValueExpression>> params,
     common::ManagedPointer<std::vector<type::TypeId>> param_types,
@@ -90,35 +94,36 @@ std::unique_ptr<planner::AbstractPlanNode> PilotUtil::GetOutPlan(
 }
 
 void PilotUtil::GetQueryPlans(common::ManagedPointer<Pilot> pilot, common::ManagedPointer<WorkloadForecast> forecast,
-                              uint64_t end_segment_index,
+                              uint64_t end_segment_index, transaction::TransactionContext *txn,
                               std::vector<std::unique_ptr<planner::AbstractPlanNode>> *plan_vecs) {
-  auto txn_manager = pilot->txn_manager_;
+  std::unordered_set<execution::query_id_t> qids;
   auto catalog = pilot->catalog_;
-  transaction::TransactionContext *txn = txn_manager->BeginTransaction();
-
   for (uint64_t idx = 0; idx <= end_segment_index; idx++) {
-    for (auto &it : forecast->forecast_segments_[idx].id_to_num_exec_) {
-      auto stmt_list = parser::PostgresParser::BuildParseTree(forecast->query_id_to_text_[it.first]);
-      auto db_oid = static_cast<catalog::db_oid_t>(forecast->query_id_to_dboid_[it.first]);
-      auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
-
-      auto out_plan = PilotUtil::GetOutPlan(
-          txn, common::ManagedPointer(accessor), common::ManagedPointer(&forecast->query_id_to_params_[it.first][0]),
-          common::ManagedPointer(&(forecast->query_id_to_param_types_[it.first])), common::ManagedPointer(stmt_list),
-          db_oid, pilot->stats_storage_, forecast->optimizer_timeout_);
-
-      plan_vecs->emplace_back(std::move(out_plan));
+    for (auto &it : forecast->GetSegmentByIndex(idx).GetIdToNumexec()) {
+      qids.insert(it.first);
     }
   }
-  txn_manager->Abort(txn);
+  for (auto qid : qids) {
+    auto stmt_list = parser::PostgresParser::BuildParseTree(forecast->GetQuerytextByQid(qid));
+    auto db_oid = static_cast<catalog::db_oid_t>(forecast->GetDboidByQid(qid));
+    auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
+
+    auto out_plan = PilotUtil::GenerateQueryPlan(
+        txn, common::ManagedPointer(accessor), common::ManagedPointer(&(forecast->GetQueryparamsByQid(qid)->at(0))),
+        common::ManagedPointer(forecast->GetParamtypesByQid(qid)), common::ManagedPointer(stmt_list), db_oid,
+        pilot->stats_storage_, forecast->GetOptimizerTimeout());
+
+    plan_vecs->emplace_back(std::move(out_plan));
+  }
 }
 
 uint64_t PilotUtil::ComputeCost(common::ManagedPointer<Pilot> pilot, common::ManagedPointer<WorkloadForecast> forecast,
                                 uint64_t start_segment_index, uint64_t end_segment_index) {
   // Compute cost as average latency of queries weighted by their num of exec
-  // Keep track of the ou inference results (a vector of doubles) for each ous associated with the pipeline
-  // under different parameters for each pipeline
-  // Each element of the outermost vector is the ou inferences for one set of parameters
+  // pipeline_to_prediction maps each pipeline to a vector of ou inference results for all ous of this pipeline
+  // (where each entry corresponds to a different query param)
+  // Each element of the outermost vector is a vector of ou prediction (each being a double vector) for one set of
+  // parameters
   std::map<std::pair<execution::query_id_t, execution::pipeline_id_t>, std::vector<std::vector<std::vector<double>>>>
       pipeline_to_prediction;
   pilot->ExecuteForecast(&pipeline_to_prediction, start_segment_index, end_segment_index);
@@ -127,27 +132,27 @@ uint64_t PilotUtil::ComputeCost(common::ManagedPointer<Pilot> pilot, common::Man
   execution::query_id_t prev_qid = pipeline_to_prediction.begin()->first.first;
   query_cost.emplace_back(prev_qid, 0);
 
-  for (auto ppl_to_pred : pipeline_to_prediction) {
-    auto ppl_sum = 0;
-    for (auto ppl_res : ppl_to_pred.second) {
-      for (auto ou_res : ppl_res) {
+  for (auto const &pipeline_to_pred : pipeline_to_prediction) {
+    auto pipeline_sum = 0;
+    for (auto const &pipeline_res : pipeline_to_pred.second) {
+      for (auto ou_res : pipeline_res) {
         // sum up the latency of ous
-        ppl_sum += ou_res[ou_res.size() - 1];
+        pipeline_sum += ou_res[ou_res.size() - 1];
       }
     }
     // record average cost of this pipeline among the same queries with diff param
-    if (prev_qid == ppl_to_pred.first.first) {
-      query_cost.back().second += ppl_sum / ppl_to_pred.second.size();
+    if (prev_qid == pipeline_to_pred.first.first) {
+      query_cost.back().second += static_cast<double>(pipeline_sum) / pipeline_to_pred.second.size();
     } else {
-      query_cost.emplace_back(ppl_to_pred.first.first, ppl_sum / ppl_to_pred.second.size());
-      prev_qid = ppl_to_pred.first.first;
+      query_cost.emplace_back(pipeline_to_pred.first.first, pipeline_sum / pipeline_to_pred.second.size());
+      prev_qid = pipeline_to_pred.first.first;
     }
   }
   uint128_t total_cost = 0, num_queries = 0;
   for (auto qcost : query_cost) {
     for (auto i = start_segment_index; i <= end_segment_index; i++) {
-      total_cost += forecast->forecast_segments_[i].id_to_num_exec_[qcost.first] * qcost.second;
-      num_queries += forecast->forecast_segments_[i].id_to_num_exec_[qcost.first];
+      total_cost += forecast->GetSegmentByIndex(i).GetIdToNumexec().at(qcost.first) * qcost.second;
+      num_queries += forecast->GetSegmentByIndex(i).GetIdToNumexec().at(qcost.first);
     }
   }
   NOISEPAGE_ASSERT(num_queries > 0, "expect more then one query");
@@ -159,11 +164,12 @@ const std::list<metrics::PipelineMetricRawData::PipelineData> &PilotUtil::Collec
     uint64_t start_segment_index, uint64_t end_segment_index, std::vector<execution::query_id_t> *pipeline_qids) {
   auto txn_manager = pilot->txn_manager_;
   auto catalog = pilot->catalog_;
-  auto metrics_manager = pilot->metrics_thread_->GetMetricsManager();
   transaction::TransactionContext *txn;
+  auto metrics_manager = pilot->metrics_thread_->GetMetricsManager();
 
   execution::exec::ExecutionSettings exec_settings{};
   exec_settings.UpdateFromSettingsManager(pilot->settings_manager_);
+
   execution::exec::NoOpResultConsumer consumer;
   execution::exec::OutputCallback callback = consumer;
 
@@ -206,7 +212,6 @@ const std::list<metrics::PipelineMetricRawData::PipelineData> &PilotUtil::Collec
       exec_query->Run(common::ManagedPointer(exec_ctx), execution::vm::ExecutionMode::Interpret);
       txn_manager->Abort(txn);
     }
-    txn_manager->Abort(txn);
   }
 
   // retrieve the features
@@ -241,7 +246,7 @@ void PilotUtil::InferenceWithFeatures(const std::string &model_save_path,
   std::string project_build_path = getenv(Pilot::BUILD_ABS_PATH);
   std::unordered_map<ExecutionOperatingUnitType, std::vector<std::vector<double>>> inference_result;
   for (auto &ou_map_it : ou_to_features) {
-    auto res = model_server_manager->InferMiniRunnerModel(
+    auto res = model_server_manager->DoInference(
         selfdriving::OperatingUnitUtil::ExecutionOperatingUnitTypeToString(ou_map_it.first),
         project_build_path + model_save_path, ou_map_it.second);
     if (!res.second) {
