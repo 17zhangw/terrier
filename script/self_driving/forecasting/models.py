@@ -91,7 +91,12 @@ class ForecastModel(ABC):
         if self._x_transformer:
             test_seq = self._x_transformer.transform(test_seq)
 
-        return self._do_predict(test_seq)
+        predict = self._do_predict(test_seq)
+        if self._y_transformer:
+            # Get the predicted scalar value back
+            predict = self._y_transformer.inverse_transform(np.array([predict]).reshape(1, -1))[0][0]
+
+        return predict
 
     @abstractmethod
     def _do_predict(self, test_seq: np.ndarray) -> float:
