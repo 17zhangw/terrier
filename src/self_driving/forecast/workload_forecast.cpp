@@ -20,6 +20,10 @@ WorkloadForecast::WorkloadForecast(uint64_t forecast_interval) : forecast_interv
   CreateSegments();
 }
 
+WorkloadForecast(const WorkloadForecastPrediction &inference) {
+  NOISEPAGE_ASSERT(false, "Error");
+}
+
 /**
  * Queries in query_timestamp_to_id_ are sorted by their timestamp while allowing duplicate keys,
  * and then partitioned by timestamps and forecast_interval into segments.

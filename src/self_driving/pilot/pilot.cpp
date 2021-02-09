@@ -1,5 +1,6 @@
 #include "self_driving/pilot/pilot.h"
 
+#include <cstdio>
 #include <memory>
 #include <utility>
 
@@ -49,12 +50,31 @@ void Pilot::PerformForecasterTrain() {
 }
 
 void Pilot::PerformPlanning() {
-  forecast_ = std::make_unique<WorkloadForecast>(workload_forecast_interval_);
+  // Make an inference prediction with current files.
+  std::vector<std::string> models{"LSTM"};
+  std::string input_path{metrics::QueryTraceMetricRawData::FILES[1]};
+  auto result = model_server_manager_->InferForecastModel(input_path, forecast_model_save_path_, models, NULL, workload_forecast_interval_);
+  if (!result.second) {
+    SELFDRIVING_LOG_ERROR("Forecast model inference failed");
+    return;
+  }
 
-  metrics_thread_->PauseMetrics();
-  std::vector<std::pair<const std::string, catalog::db_oid_t>> best_action_seq;
-  Pilot::ActionSearch(&best_action_seq);
-  metrics_thread_->ResumeMetrics();
+  {
+    metrics_thread_->PauseMetrics();
+    // Reset the contents of the file
+    // TODO(wz2): Should we stash the contents or move the file to some history location?
+    std::remove(input_path.c_str());
+
+    metrics_thread_->ResumeMetrics();
+  }
+
+  {
+    // Pause metrics while planning
+    metrics_thread_->PauseMetrics();
+    std::vector<std::pair<const std::string, catalog::db_oid_t>> best_action_seq;
+    Pilot::ActionSearch(&best_action_seq);
+    metrics_thread_->ResumeMetrics();
+  }
 }
 
 void Pilot::ActionSearch(std::vector<std::pair<const std::string, catalog::db_oid_t>> *best_action_seq) {

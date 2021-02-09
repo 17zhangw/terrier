@@ -413,6 +413,16 @@ SETTING_string(
     noisepage::settings::Callbacks::NoOp
 )
 
+SETTING_int(
+    forecast_sample_limit,
+    "Limit on number of samples for workload forecasting",
+    10,
+    0,
+    100,
+    true,
+    noisepage::settings::Callbacks::NoOp
+)
+
 SETTING_string(
     startup_ddl_path,
     "Path to startup DDL (default: startup.sql)",

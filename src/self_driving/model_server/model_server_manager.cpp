@@ -257,7 +257,7 @@ std::pair<std::vector<std::vector<double>>, bool> ModelServerManager::InferMiniR
   return InferModel<std::vector<std::vector<double>>>(ModelType::Type::MiniRunner, model_path, j);
 }
 
-std::pair<selfdriving::ForecastPrediction, bool> ModelServerManager::InferForecastModel(
+std::pair<selfdriving::WorkloadForecastPrediction, bool> ModelServerManager::InferForecastModel(
     const std::string &input_path, const std::string &model_path, const std::vector<std::string> &model_names,
     std::string *models_config, uint64_t interval_micro_sec) {
   nlohmann::json j;
@@ -268,7 +268,7 @@ std::pair<selfdriving::ForecastPrediction, bool> ModelServerManager::InferForeca
     j["models_config"] = *models_config;
   }
 
-  selfdriving::ForecastPrediction result;
+  selfdriving::WorkloadForecastPrediction result;
   auto data = InferModel<std::map<std::string, std::map<std::string, std::vector<double>>>>(ModelType::Type::Forecast,
                                                                                             model_path, j);
   for (auto &cid_pair : data.first) {

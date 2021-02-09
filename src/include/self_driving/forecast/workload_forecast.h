@@ -12,7 +12,7 @@
 
 namespace noisepage::selfdriving {
 
-using ForecastPrediction = std::unordered_map<uint64_t, std::unordered_map<uint64_t, std::vector<double>>>;
+using WorkloadForecastPrediction = std::unordered_map<uint64_t, std::unordered_map<uint64_t, std::vector<double>>>;
 
 /**
  * Breaking predicted queries passed in by the Pilot into segments by their associated timestamps
@@ -23,9 +23,14 @@ class WorkloadForecast {
   /**
    * Constructor for WorkloadForecast
    * @param forecast_interval Interval used to partition the queries into segments
-   *
    */
   explicit WorkloadForecast(uint64_t forecast_interval);
+
+  /**
+   * Constructor for WorkloadForecast from inference results
+   * @param inference Workload inference
+   */
+  explicit WorkloadForecast(const WorkloadForecastPrediction &inference);
 
   /**
    * Get number of forecasted segments
