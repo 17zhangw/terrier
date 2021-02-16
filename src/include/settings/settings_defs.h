@@ -416,10 +416,11 @@ SETTING_string(
 SETTING_int(
     forecast_sample_limit,
     "Limit on number of samples for workload forecasting",
-    10,
+    5,
     0,
     100,
     true,
+    // TODO(wz2): Implement this as a callback
     noisepage::settings::Callbacks::NoOp
 )
 

@@ -5,7 +5,6 @@
 #undef __SETTING_GFLAGS_DEFINE__     // NOLINT
 
 #include "execution/execution_util.h"
-#include "network/postgres/postgres_network_commands_util.h"
 #include "optimizer/cost_model/trivial_cost_model.h"
 
 namespace noisepage {
@@ -31,11 +30,11 @@ void DBMain::Run() {
     auto db_oid = catalog->GetDatabaseOid(common::ManagedPointer(txn), catalog::DEFAULT_DATABASE);
     auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
     for (auto &ddl : startup_ddls) {
-      util::QueryExecUtil::ExecuteStatement(db_oid, common::ManagedPointer(txn), common::ManagedPointer(accessor),
-                                            common::ManagedPointer(settings_manager_),
-                                            std::make_unique<optimizer::TrivialCostModel>(),
-                                            common::ManagedPointer(stats_storage_),
-                                            settings_manager_->GetInt(settings::Param::task_execution_timeout), ddl);
+      util::QueryExecUtil::ExecuteDDL(db_oid, common::ManagedPointer(txn), common::ManagedPointer(accessor),
+                                      common::ManagedPointer(settings_manager_),
+                                      std::make_unique<optimizer::TrivialCostModel>(),
+                                      common::ManagedPointer(stats_storage_),
+                                      settings_manager_->GetInt(settings::Param::task_execution_timeout), ddl);
     }
     txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
   }
