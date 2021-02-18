@@ -192,6 +192,9 @@ SETTING_int64(
     10000000,
     1000000000000,
     true,
+
+    // Implementing this callback also needs to update metadata
+    // stored within QueryTraceMetricRawData.
     noisepage::settings::Callbacks::NoOp
 )
 
@@ -212,6 +215,9 @@ SETTING_int64(
     120000000,
     10000000000,
     true,
+
+    // Implementing this callback also needs to update metadata
+    // stored within QueryTraceMetricRawData.
     noisepage::settings::Callbacks::NoOp
 )
 
@@ -277,6 +283,16 @@ SETTING_bool(
     false,
     true,
     noisepage::settings::Callbacks::MetricsQueryTrace
+)
+
+SETTING_int(
+    query_trace_metrics_output,
+    "Output type for Query Traces Metrics (default: CSV)",
+    1,
+    1,
+    3,
+    true,
+    noisepage::settings::Callbacks::MetricsQueryTraceOutput
 )
 
 SETTING_bool(
@@ -420,8 +436,7 @@ SETTING_int(
     0,
     100,
     true,
-    // TODO(wz2): Implement this as a callback
-    noisepage::settings::Callbacks::NoOp
+    noisepage::settings::Callbacks::ForecastSampleLimit
 )
 
 SETTING_string(

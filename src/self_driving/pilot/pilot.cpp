@@ -49,6 +49,14 @@ Pilot::Pilot(std::string model_save_path, std::string forecast_model_save_path,
       txn_manager_(txn_manager),
       workload_forecast_interval_(workload_forecast_interval) {
   forecast_ = nullptr;
+
+  auto *txn = txn_manager_->BeginTransaction();
+  auto db_oid = catalog_->GetDatabaseOid(common::ManagedPointer(txn), catalog::DEFAULT_DATABASE);
+  txn_manager_->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
+  query_exec_util_ =
+      std::make_unique<util::QueryExecUtil>(db_oid, txn_manager_, catalog_, settings_manager_, stats_storage_,
+                                            settings_manager_->GetInt(settings::Param::task_execution_timeout));
+
   while (!model_server_manager_->ModelServerStarted()) {
   }
 }
@@ -70,7 +78,8 @@ std::pair<WorkloadMetadata, bool> Pilot::RetrieveWorkloadMetadata(uint64_t itera
     metadata.query_id_to_dboid_[qid] = db_oid;
 
     execution::sql::StringVal *text_val = static_cast<execution::sql::StringVal *>(values[3]);
-    metadata.query_id_to_text_[qid] = std::string(text_val->StringView().data(), text_val->StringView().size());
+    // We do this since the string has been quoted by the metric
+    metadata.query_id_to_text_[qid] = std::string(text_val->StringView().data() + 1, text_val->StringView().size() - 2);
 
     execution::sql::StringVal *param_types = static_cast<execution::sql::StringVal *>(values[4]);
     std::vector<type::TypeId> types;
@@ -96,15 +105,10 @@ std::pair<WorkloadMetadata, bool> Pilot::RetrieveWorkloadMetadata(uint64_t itera
   };
 
   auto query = fmt::format("SELECT * FROM noisepage_forecast_parameters WHERE iteration = {}", iteration);
-  auto *txn = txn_manager_->BeginTransaction();
-  auto db_oid = catalog_->GetDatabaseOid(common::ManagedPointer(txn), catalog::DEFAULT_DATABASE);
-  auto accessor = catalog_->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
-  bool flag = util::QueryExecUtil::ExecuteDML(
-      db_oid, common::ManagedPointer(txn), common::ManagedPointer(accessor), settings_manager_,
-      std::make_unique<optimizer::TrivialCostModel>(), stats_storage_,
-      settings_manager_->GetInt(settings::Param::task_execution_timeout), query, to_row_fn);
-  txn_manager_->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
-  return std::make_pair(std::move(metadata), flag);
+  query_exec_util_->BeginTransaction();
+  bool result = query_exec_util_->ExecuteDML(query, nullptr, nullptr, to_row_fn, nullptr);
+  query_exec_util_->EndTransaction(result);
+  return std::make_pair(std::move(metadata), result);
 }
 
 void Pilot::RecordWorkloadForecastPrediction(uint64_t iteration,
@@ -114,37 +118,34 @@ void Pilot::RecordWorkloadForecastPrediction(uint64_t iteration,
   // CREATE TABLE noisepage_forecast_forecasts(iteration INT, query_id INT, interval INT, rate REAL);
   std::string statements[2] = {"INSERT INTO noisepage_forecast_clusters (?, ?, ?, ?)",
                                "INSERT INTO noisepage_forecast_forecasts (?, ?, ?, ?)"};
-  std::vector<std::unique_ptr<execution::compiler::ExecutableQuery>> queries;
-  std::vector<std::unique_ptr<planner::OutputSchema>> output_schemas;
+  std::vector<size_t> statement_indexes;
   auto *txn = txn_manager_->BeginTransaction();
   auto db_oid = catalog_->GetDatabaseOid(common::ManagedPointer(txn), catalog::DEFAULT_DATABASE);
   auto accessor = catalog_->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
 
-  execution::exec::ExecutionSettings exec_settings{};
-  exec_settings.UpdateFromSettingsManager(settings_manager_);
-  common::ManagedPointer<metrics::MetricsManager> metrics_manager = nullptr;
-  for (auto &statement : statements) {
-    auto result = util::QueryExecUtil::PlanStatement(
-        db_oid, common::ManagedPointer(txn), common::ManagedPointer(accessor),
-        std::make_unique<optimizer::TrivialCostModel>(), stats_storage_,
-        settings_manager_->GetInt(settings::Param::task_execution_timeout), statement);
-    std::unique_ptr<planner::AbstractPlanNode> out_plan = std::move(result.second);
+  query_exec_util_->BeginTransaction();
+  query_exec_util_->SetCostModelFunction([]() { return std::make_unique<optimizer::TrivialCostModel>(); });
+  for (size_t i = 0; i < 2; i++) {
+    std::vector<type::TypeId> types;
+    std::vector<parser::ConstantValueExpression> params;
+    if (i == 0) {
+      types = {type::TypeId::INTEGER, type::TypeId::INTEGER, type::TypeId::INTEGER, type::TypeId::INTEGER};
+    } else {
+      types = {type::TypeId::INTEGER, type::TypeId::INTEGER, type::TypeId::INTEGER, type::TypeId::REAL};
+    }
 
-    auto exec_query = execution::compiler::CompilationContext::Compile(*out_plan, exec_settings, accessor.get(),
-                                                                       execution::compiler::CompilationMode::OneShot);
-    output_schemas.emplace_back(out_plan->GetOutputSchema()->Copy());
-    queries.emplace_back(std::move(exec_query));
+    for (auto &type : types) {
+      params.emplace_back(type);
+    }
+
+    statement_indexes.emplace_back(
+        query_exec_util_->CompileQuery(statements[i], common::ManagedPointer(&params), common::ManagedPointer(&types)));
   }
 
   // Execute all the forecast_clusters inserts
-  execution::exec::NoOpResultConsumer consumer;
-  execution::exec::OutputCallback callback = consumer;
   {
     std::vector<parser::ConstantValueExpression> clusters_params(4);
     clusters_params[0] = parser::ConstantValueExpression(type::TypeId::INTEGER, execution::sql::Integer(iteration));
-    auto exec_ctx = std::make_unique<execution::exec::ExecutionContext>(
-        db_oid, common::ManagedPointer(txn), callback, output_schemas[0].get(), common::ManagedPointer(accessor),
-        exec_settings, metrics_manager);
     for (auto &cluster : prediction) {
       clusters_params[1] =
           parser::ConstantValueExpression(type::TypeId::INTEGER, execution::sql::Integer(cluster.first));
@@ -155,9 +156,9 @@ void Pilot::RecordWorkloadForecastPrediction(uint64_t iteration,
               parser::ConstantValueExpression(type::TypeId::INTEGER, execution::sql::Integer(qid_info.first));
           clusters_params[3] = parser::ConstantValueExpression(
               type::TypeId::INTEGER, execution::sql::Integer(metadata.query_id_to_dboid_.find(qid)->second));
-          exec_ctx->SetParams(
-              common::ManagedPointer<const std::vector<parser::ConstantValueExpression>>(&clusters_params));
-          queries[0]->Run(common::ManagedPointer(exec_ctx), execution::vm::ExecutionMode::Interpret);
+
+          query_exec_util_->ExecuteQuery(statement_indexes[0], nullptr, common::ManagedPointer(&clusters_params),
+                                         nullptr);
         }
       }
     }
@@ -167,9 +168,6 @@ void Pilot::RecordWorkloadForecastPrediction(uint64_t iteration,
   {
     std::vector<parser::ConstantValueExpression> forecasts_params(4);
     forecasts_params[0] = parser::ConstantValueExpression(type::TypeId::INTEGER, execution::sql::Integer(iteration));
-    auto exec_ctx = std::make_unique<execution::exec::ExecutionContext>(
-        db_oid, common::ManagedPointer(txn), callback, output_schemas[1].get(), common::ManagedPointer(accessor),
-        exec_settings, metrics_manager);
     for (auto &cluster : prediction) {
       for (auto &qid_info : cluster.second) {
         forecasts_params[1] =
@@ -179,15 +177,15 @@ void Pilot::RecordWorkloadForecastPrediction(uint64_t iteration,
               parser::ConstantValueExpression(type::TypeId::INTEGER, execution::sql::Integer(interval));
           forecasts_params[3] = parser::ConstantValueExpression(type::TypeId::INTEGER,
                                                                 execution::sql::Integer(qid_info.second[interval]));
-          exec_ctx->SetParams(
-              common::ManagedPointer<const std::vector<parser::ConstantValueExpression>>(&forecasts_params));
-          queries[1]->Run(common::ManagedPointer(exec_ctx), execution::vm::ExecutionMode::Interpret);
+
+          query_exec_util_->ExecuteQuery(statement_indexes[1], nullptr, common::ManagedPointer(&forecasts_params),
+                                         nullptr);
         }
       }
     }
   }
 
-  txn_manager_->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
+  query_exec_util_->EndTransaction(true);
 }
 
 void Pilot::PerformPlanning() {
@@ -200,37 +198,64 @@ void Pilot::PerformPlanning() {
 
   // Suspend the metrics thread while we are handling the data (snapshot).
   metrics_thread_->PauseMetrics();
+  metrics_thread_->GetMetricsManager()->Aggregate();
+  metrics_thread_->GetMetricsManager()->ToOutput();
+  {
+    auto raw = reinterpret_cast<metrics::QueryTraceMetricRawData *>(
+        metrics_thread_->GetMetricsManager()
+            ->AggregatedMetrics()
+            .at(static_cast<uint8_t>(metrics::MetricsComponent::QUERY_TRACE))
+            .get());
+    if (raw) {
+      raw->ResetAggregation(common::ManagedPointer(query_exec_util_));
+    }
+  }
+
   auto iteration = Pilot::planning_iteration_++;
   std::string input_path{metrics::QueryTraceMetricRawData::FILES[1]};
-  auto filename = fmt::format("{}_{}", input_path.c_str(), iteration);
-  std::rename(input_path.c_str(), filename.c_str());
-  metrics_thread_->ResumeMetrics();
 
   // Infer forecast model
   std::vector<std::string> models{"LSTM"};
-  auto result = model_server_manager_->InferForecastModel(filename, forecast_model_save_path_, models, NULL,
+  auto result = model_server_manager_->InferForecastModel(input_path, forecast_model_save_path_, models, NULL,
                                                           workload_forecast_interval_);
   if (!result.second) {
     SELFDRIVING_LOG_ERROR("Forecast model inference failed");
-    return;
-  }
-
-  auto metadata_result = RetrieveWorkloadMetadata(iteration);
-  if (!metadata_result.second) {
-    SELFDRIVING_LOG_ERROR("Failed to read from internal trace metadata tables");
-    return;
-  }
-
-  RecordWorkloadForecastPrediction(iteration, result.first, metadata_result.first);
-  forecast_ = std::make_unique<selfdriving::WorkloadForecast>(result.first, metadata_result.first);
-
-  {
-    // Pause metrics while planning
-    metrics_thread_->PauseMetrics();
-    std::vector<std::pair<const std::string, catalog::db_oid_t>> best_action_seq;
-    Pilot::ActionSearch(&best_action_seq);
     metrics_thread_->ResumeMetrics();
+    return;
   }
+
+  // Retrieve query information from internal tables
+  auto metrics_output = metrics_thread_->GetMetricsManager()->GetMetricOutput(metrics::MetricsComponent::QUERY_TRACE);
+  if (metrics_output == metrics::MetricsOutput::DB || metrics_output == metrics::MetricsOutput::CSV_DB) {
+    auto metadata_result = RetrieveWorkloadMetadata(iteration);
+    if (!metadata_result.second) {
+      SELFDRIVING_LOG_ERROR("Failed to read from internal trace metadata tables");
+      metrics_thread_->ResumeMetrics();
+      return;
+    }
+
+    // Record forecast into internal tables
+    RecordWorkloadForecastPrediction(iteration, result.first, metadata_result.first);
+
+    // Construct workload forecast
+    forecast_ = std::make_unique<selfdriving::WorkloadForecast>(result.first, metadata_result.first);
+  } else {
+    auto sample = settings_manager_->GetInt(settings::Param::forecast_sample_limit);
+    forecast_ = std::make_unique<selfdriving::WorkloadForecast>(workload_forecast_interval_, sample);
+  }
+
+  // Copy file for backup -- future will not use this data
+  for (size_t i = 0; i < 2; i++) {
+    std::string input_path{metrics::QueryTraceMetricRawData::FILES[i]};
+    auto filename = fmt::format("{}_{}", input_path.c_str(), iteration);
+    std::rename(input_path.c_str(), filename.c_str());
+  }
+
+  // Perform planning
+  std::vector<std::pair<const std::string, catalog::db_oid_t>> best_action_seq;
+  Pilot::ActionSearch(&best_action_seq);
+
+  metrics_thread_->ResumeMetrics();
 }
 
 void Pilot::ActionSearch(std::vector<std::pair<const std::string, catalog::db_oid_t>> *best_action_seq) {

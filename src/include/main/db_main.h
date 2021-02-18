@@ -10,6 +10,7 @@
 #include "common/dedicated_thread_registry.h"
 #include "common/managed_pointer.h"
 #include "messenger/messenger.h"
+#include "metrics/metrics_defs.h"
 #include "metrics/metrics_thread.h"
 #include "network/connection_handle_factory.h"
 #include "network/noisepage_server.h"
@@ -475,6 +476,19 @@ class DBMain {
       db_main->model_server_manager_ = std::move(model_server_manager);
       db_main->messenger_layer_ = std::move(messenger_layer);
 
+      if (db_main->txn_layer_ && use_catalog_ && use_settings_manager_ && use_stats_storage_) {
+        auto *bootstrap_txn = db_main->txn_layer_->GetTransactionManager()->BeginTransaction();
+        auto db_oid = db_main->catalog_layer_->GetCatalog()->GetDatabaseOid(common::ManagedPointer(bootstrap_txn),
+                                                                            catalog::DEFAULT_DATABASE);
+        txn_layer->GetTransactionManager()->Commit(bootstrap_txn, transaction::TransactionUtil::EmptyCallback, nullptr);
+        db_main->query_exec_util_ = std::make_unique<util::QueryExecUtil>(
+            db_oid, db_main->txn_layer_->GetTransactionManager(), db_main->catalog_layer_->GetCatalog(),
+            common::ManagedPointer(db_main->settings_manager_), common::ManagedPointer(db_main->stats_storage_),
+            optimizer_timeout_);
+
+        db_main->metrics_manager_->SetQueryExecUtil(common::ManagedPointer(db_main->query_exec_util_));
+      }
+
       return db_main;
     }
 
@@ -787,6 +801,7 @@ class DBMain {
     uint32_t metrics_interval_ = 10000;
     bool use_metrics_thread_ = false;
     bool query_trace_metrics_ = false;
+    metrics::MetricsOutput query_trace_metrics_output_ = metrics::MetricsOutput::CSV;
     bool pipeline_metrics_ = false;
     uint8_t pipeline_metrics_sample_rate_ = 10;
     bool transaction_metrics_ = false;
@@ -794,6 +809,7 @@ class DBMain {
     bool gc_metrics_ = false;
     bool bind_command_metrics_ = false;
     bool execute_command_metrics_ = false;
+    uint64_t forecast_sample_limit_ = 5;
     uint64_t record_buffer_segment_size_ = 1e5;
     uint64_t record_buffer_segment_reuse_ = 1e4;
     std::string wal_file_path_ = "wal.log";
@@ -874,6 +890,11 @@ class DBMain {
       pilot_interval_ = settings_manager->GetInt64(settings::Param::pilot_interval);
       forecast_train_interval_ = settings_manager->GetInt64(settings::Param::forecast_train_interval);
       workload_forecast_interval_ = settings_manager->GetInt64(settings::Param::workload_forecast_interval);
+
+      // TODO(wz2): This should probably not be an assert, but it's not wrong to go the other way.
+      NOISEPAGE_ASSERT(workload_forecast_interval_ > metrics_interval_,
+                       "Workload segment should be larger than metrics interval");
+
       model_save_path_ = settings_manager->GetString(settings::Param::model_save_path);
       forecast_model_save_path_ = settings_manager->GetString(settings::Param::forecast_model_save_path);
 
@@ -892,6 +913,9 @@ class DBMain {
                             : execution::vm::ExecutionMode::Interpret;
 
       query_trace_metrics_ = settings_manager->GetBool(settings::Param::query_trace_metrics_enable);
+      query_trace_metrics_output_ =
+          static_cast<metrics::MetricsOutput>(settings_manager->GetInt(settings::Param::query_trace_metrics_output));
+      forecast_sample_limit_ = settings_manager->GetInt(settings::Param::forecast_sample_limit);
       pipeline_metrics_ = settings_manager->GetBool(settings::Param::pipeline_metrics_enable);
       pipeline_metrics_sample_rate_ = settings_manager->GetInt(settings::Param::pipeline_metrics_sample_rate);
       transaction_metrics_ = settings_manager->GetBool(settings::Param::transaction_metrics_enable);
@@ -916,7 +940,14 @@ class DBMain {
       metrics_manager->SetMetricSampleRate(metrics::MetricsComponent::EXECUTION_PIPELINE,
                                            pipeline_metrics_sample_rate_);
 
-      if (query_trace_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::QUERY_TRACE);
+      if (query_trace_metrics_) {
+        metrics_manager->EnableMetric(metrics::MetricsComponent::QUERY_TRACE);
+        metrics::QueryTraceMetricRawData::QUERY_PARAM_SAMPLE = forecast_sample_limit_;
+        metrics::QueryTraceMetricRawData::QUERY_FORECAST_INTERVAL = pilot_planning_;
+        metrics::QueryTraceMetricRawData::QUERY_SEGMENT_INTERVAL = workload_forecast_interval_;
+      }
+      metrics_manager->SetMetricOutput(metrics::MetricsComponent::QUERY_TRACE, query_trace_metrics_output_);
+
       if (pipeline_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::EXECUTION_PIPELINE);
       if (transaction_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::TRANSACTION);
       if (logging_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::LOGGING);
@@ -1053,6 +1084,7 @@ class DBMain {
   std::unique_ptr<selfdriving::Pilot> pilot_;
   std::unique_ptr<modelserver::ModelServerManager> model_server_manager_;
   std::unique_ptr<MessengerLayer> messenger_layer_;
+  std::unique_ptr<util::QueryExecUtil> query_exec_util_;
 };
 
 }  // namespace noisepage

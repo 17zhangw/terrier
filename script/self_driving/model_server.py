@@ -277,7 +277,7 @@ class ForecastModelServer:
         self.HORIZON_LEN = 30 * MICRO_SEC_PER_SEC // interval
 
         # Number of data points for testing set
-        self.EVAL_DATA_SIZE = 2 * self.SEQ_LEN + self.HORIZON_LEN
+        self.EVAL_DATA_SIZE = self.SEQ_LEN + 2 * self.HORIZON_LEN
 
 
     def train(self, data: Dict) -> Tuple[bool, str]:

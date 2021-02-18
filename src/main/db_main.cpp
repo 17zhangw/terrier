@@ -29,14 +29,15 @@ void DBMain::Run() {
     auto *txn = txn_manager->BeginTransaction();
     auto db_oid = catalog->GetDatabaseOid(common::ManagedPointer(txn), catalog::DEFAULT_DATABASE);
     auto accessor = catalog->GetAccessor(common::ManagedPointer(txn), db_oid, DISABLED);
+    util::QueryExecUtil util(db_oid, txn_manager, catalog, common::ManagedPointer(settings_manager_),
+                             common::ManagedPointer(stats_storage_),
+                             settings_manager_->GetInt(settings::Param::task_execution_timeout));
+    util.BeginTransaction();
+    util.SetCostModelFunction([]() { return std::make_unique<optimizer::TrivialCostModel>(); });
     for (auto &ddl : startup_ddls) {
-      util::QueryExecUtil::ExecuteDDL(db_oid, common::ManagedPointer(txn), common::ManagedPointer(accessor),
-                                      common::ManagedPointer(settings_manager_),
-                                      std::make_unique<optimizer::TrivialCostModel>(),
-                                      common::ManagedPointer(stats_storage_),
-                                      settings_manager_->GetInt(settings::Param::task_execution_timeout), ddl);
+      util.ExecuteDDL(ddl);
     }
-    txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
+    util.EndTransaction(true);
   }
 
   NOISEPAGE_ASSERT(network_layer_ != DISABLED, "Trying to run without a NetworkLayer.");

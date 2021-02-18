@@ -77,14 +77,14 @@ class PilotThread {
   void PilotThreadLoop() {
     while (run_pilot_) {
       std::this_thread::sleep_for(pilot_period_);
-      if (!pilot_paused_) pilot_->PerformPlanning();
-
       if (forecaster_remain_period_ > pilot_period_) {
         forecaster_remain_period_ -= pilot_period_;
       } else {
         if (!pilot_paused_) pilot_->PerformForecasterTrain();
         forecaster_remain_period_ = forecaster_train_period_;
       }
+
+      if (!pilot_paused_) pilot_->PerformPlanning();
     }
   }
 };

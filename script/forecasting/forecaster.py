@@ -42,7 +42,7 @@ SEQ_LEN = 10 * MICRO_SEC_PER_SEC // INTERVAL_MICRO_SEC
 HORIZON_LEN = 30 * MICRO_SEC_PER_SEC // INTERVAL_MICRO_SEC
 
 # Number of data points for testing set
-EVAL_DATA_SIZE = 2 * SEQ_LEN + HORIZON_LEN
+EVAL_DATA_SIZE = SEQ_LEN + 2 * HORIZON_LEN
 
 argp = argparse.ArgumentParser(description="Query Load Forecaster")
 

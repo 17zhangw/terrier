@@ -246,7 +246,8 @@ class MetricsStore {
 
   explicit MetricsStore(common::ManagedPointer<metrics::MetricsManager> metrics_manager,
                         const std::bitset<NUM_COMPONENTS> &enabled_metrics,
-                        const std::array<std::vector<bool>, NUM_COMPONENTS> &samples_mask_);
+                        const std::array<std::vector<bool>, NUM_COMPONENTS> &samples_mask_,
+                        const std::array<MetricsOutput, NUM_COMPONENTS> &metrics_output);
 
   std::array<std::unique_ptr<AbstractRawData>, NUM_COMPONENTS> GetDataToAggregate();
 
@@ -260,6 +261,7 @@ class MetricsStore {
   std::unique_ptr<ExecuteCommandMetric> execute_command_metric_;
 
   const std::bitset<NUM_COMPONENTS> &enabled_metrics_;
+  const std::array<MetricsOutput, NUM_COMPONENTS> &metrics_output_;
   const std::array<std::vector<bool>, NUM_COMPONENTS> &samples_mask_;
   std::array<uint8_t, NUM_COMPONENTS> sample_count_{0};
 };

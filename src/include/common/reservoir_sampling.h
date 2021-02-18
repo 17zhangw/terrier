@@ -1,43 +1,19 @@
-#include <random>
 #include <queue>
+#include <random>
+#include <vector>
 
 namespace noisepage::common {
 
 template <class Value>
 class ReservoirSampling {
  public:
-
-  explicit ReservoirSampling(size_t k)
-    : limit_(k),
-      dist_(0, 1) {}
-
-  void AddSample(const Value *val) {
-    double priority = dist_(generator_);
-    if (queue_.size() < limit_) {
-      queue_.emplace(priority, val);
-    } else if (priority > queue_.top().priority_) {
-      queue_.pop();
-      queue_.emplace(priority, val);
-    }
-  }
-
-  std::vector<const Value*> GetSamples() {
-    std::vector<const Value*> samples;
-    samples.reserve(limit_);
-    while (!queue_.empty()) {
-      samples.emplace_back(queue_.top().value_);
-      queue_.pop();
-    }
-  }
-
- private:
   template <class ValueKey>
   class Key {
+   public:
     double priority_;
-    const ValueKey *value_;
+    ValueKey value_;
 
-    Key (double priority, const ValueKey &value)
-      : priority_(priority), value_(value) {}
+    Key(double priority, const ValueKey &value) : priority_(priority), value_(value) {}
   };
 
   template <class ValueKey>
@@ -47,10 +23,49 @@ class ReservoirSampling {
     }
   };
 
+  explicit ReservoirSampling(size_t k) : limit_(k), dist_(0, 1) {}
+
+  void AddSample(Value val) {
+    double priority = dist_(generator_);
+    if (queue_.size() < limit_) {
+      queue_.emplace(priority, val);
+    } else if (priority > queue_.top().priority_) {
+      queue_.pop();
+      queue_.emplace(priority, val);
+    }
+  }
+
+  void AddSample(Key<Value> key) {
+    double priority = key.priority_;
+    if (queue_.size() < limit_) {
+      queue_.emplace(priority, key.value_);
+    } else if (priority > queue_.top().priority_) {
+      queue_.pop();
+      queue_.emplace(priority, key.value_);
+    }
+  }
+
+  void Merge(ReservoirSampling<Value> &other) {
+    while (!other.queue_.empty()) {
+      AddSample(queue_.top());
+      queue_.pop();
+    }
+  }
+
+  std::vector<Value> GetSamples() {
+    std::vector<Value> samples;
+    samples.reserve(limit_);
+    while (!queue_.empty()) {
+      samples.emplace_back(queue_.top().value_);
+      queue_.pop();
+    }
+  }
+
+ private:
   size_t limit_;
-  std::priority_queue<Key, std::vector<Key>, KeyCmp<ValueKey>> queue_;
+  std::priority_queue<Key<Value>, std::vector<Key<Value>>, KeyCmp<Value>> queue_;
   std::mt19937 generator_;
-  std::uniform_real_distribution dist_;
+  std::uniform_real_distribution<double> dist_;
 };
 
 }  // namespace noisepage::common

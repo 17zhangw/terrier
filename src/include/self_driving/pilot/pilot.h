@@ -16,6 +16,7 @@
 #include "execution/exec_defs.h"
 #include "self_driving/forecast/workload_forecast.h"
 #include "self_driving/pilot/action/action_defs.h"
+#include "util/query_exec_util.h"
 
 namespace noisepage {
 namespace messenger {
@@ -157,6 +158,7 @@ class Pilot {
   common::ManagedPointer<settings::SettingsManager> settings_manager_;
   common::ManagedPointer<optimizer::StatsStorage> stats_storage_;
   common::ManagedPointer<transaction::TransactionManager> txn_manager_;
+  std::unique_ptr<util::QueryExecUtil> query_exec_util_;
   uint64_t workload_forecast_interval_{10000000};
   uint64_t action_planning_horizon_{5};
   uint64_t simulation_number_{20};
