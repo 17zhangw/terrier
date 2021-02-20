@@ -422,6 +422,7 @@ SETTING_string(
 )
 
 SETTING_string(
+<<<<<<< HEAD
     forecast_model_save_path,
     "Save path of the forecast model relative to the build path (default: forecast_model.pickle)",
     "forecast_model.pickle",
@@ -447,4 +448,11 @@ SETTING_string(
     noisepage::settings::Callbacks::NoOp
 )
 
+SETTING_string(
+    bytecode_handlers_path,
+    "The path to the bytecode handlers bitcode file (default: ./bytecode_handlers_ir.bc)",
+    "./bytecode_handlers_ir.bc",
+    false,
+    noisepage::settings::Callbacks::NoOp
+)
     // clang-format on

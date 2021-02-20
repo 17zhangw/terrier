@@ -6,11 +6,12 @@ ForecastModel, and override the _do_fit and _do_predict abstract methods
 
 import logging
 from abc import ABC, abstractmethod
+from typing import Dict, List, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 from sklearn.preprocessing import MinMaxScaler
-from typing import List, Optional, Tuple, Dict
 
 
 def get_models(model_args: Dict) -> Dict:

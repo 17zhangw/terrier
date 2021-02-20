@@ -5,10 +5,9 @@ query trace producer.
 """
 
 import logging
+import csv
 from typing import Dict, Tuple
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
-import csv
 
 
 class DataLoader:
